@@ -56,5 +56,5 @@ impl fmt::Debug for AuthSpec {
     }
 }
 
-#[cfg(test)]
-mod mock;
+#[cfg(feature = "dev")]
+pub mod mock;

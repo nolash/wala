@@ -9,6 +9,9 @@ edition = "2021"
 tiny_http = "^0.7.0"
 env_logger = "^0.9"
 log = "^0.4"
+sha2 = "^0.10"
+hex = "^0.4"
+tempfile = "^3.3.0"
 
 [dependencies.pgp]
 version = "^0.7.2"
@@ -16,3 +19,4 @@ optional = true
 
 [features]
 pgpauth = ["pgp"]
+dev = []
