@@ -4,8 +4,8 @@ use std::fmt;
 
 pub struct AuthSpec {
     pub method: String,
-    key: Vec<u8>,
-    signature: Vec<u8>,
+    pub key: String,
+    pub signature: String,
 }
 
 #[derive(Debug)]
@@ -32,10 +32,13 @@ impl FromStr for AuthSpec {
             return Err(AuthSpecError{})
         }
         let auth_type: String = auth_fields.next().unwrap().to_string();
+        let auth_key: String = auth_fields.next().unwrap().to_string();
+        let auth_signature: String = auth_fields.next().unwrap().to_string();
+
         let r = AuthSpec{
             method: auth_type,
-            key: vec!(),
-            signature: vec!(),
+            key: auth_key,
+            signature: auth_signature,
         };
         Ok(r)
     }
@@ -52,3 +55,6 @@ impl fmt::Debug for AuthSpec {
             )
     }
 }
+
+#[cfg(test)]
+mod mock;
