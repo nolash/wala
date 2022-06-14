@@ -68,7 +68,6 @@ fn main() {
         let mut auth_spec: Option<AuthSpec> = None;
         let mut is_auth = false;
         let mut is_signed = false;
-        let mut is_mut = false;
 
         for h in req.headers() {
             let k = &h.field;
@@ -105,12 +104,10 @@ fn main() {
         }
 
         let url = &req.url()[1..];
-        let path_base = base_path.clone().join(url);
-        let mut path = PathBuf::new();
-
+        let mut path = base_path.clone();
+        
         match req.method() {
             Method::Put => {
-                is_mut = true;
                 if !is_signed {
                     res_status = StatusCode(403);
                     let mut res = Response::empty(res_status);
@@ -119,14 +116,23 @@ fn main() {
                 }
             },
             Method::Get => {
-                match path_base.canonicalize() {
+                let path_base = path.join(url);
+                let path_maybe: Option<PathBuf>;
+                let path_maybe = match path_base.canonicalize() {
                     Ok(v) => {
-                        //path = v;
+                        Some(v)
+                    },
+                    Err(e) => {
+                        None
+                    },
+                };
+
+                match path_maybe {
+                    Some(v) => {
                         match File::open(v) {
                             Ok(f) => {
                                 res_status = StatusCode(200);
                                 let mut res = Response::from_file(f);
-                                //res = res.with_status(res_status);
                                 req.respond(res);
                                 continue;
                             },
@@ -138,13 +144,11 @@ fn main() {
                             },
                         }
                     },
-                    Err(e) => {
-                        if !is_mut {
-                            res_status = StatusCode(404);
-                            let mut res = Response::empty(res_status);
-                            req.respond(res);
-                            continue;
-                        }
+                    None => {
+                        res_status = StatusCode(404);
+                        let mut res = Response::empty(res_status);
+                        req.respond(res);
+                        continue;
                     },
                 }
             },
@@ -158,72 +162,70 @@ fn main() {
 
         info!("processing request {} for {} -> {}", req.method(), url, path.to_str().unwrap());
 
-        if is_mut {
-            let hash: String;
-            let mut total_size: usize = 0;
-            let expected_size = match req.body_length() {
-                Some(v) => {
-                    v 
-                },
-                None => {
-                   res_status = StatusCode(400);
-                   let mut res = Response::empty(res_status);
-                   req.respond(res);
-                   continue;
-                },
-            };
+        let hash: String;
+        let mut total_size: usize = 0;
+        let expected_size = match req.body_length() {
+            Some(v) => {
+                v 
+            },
+            None => {
+               res_status = StatusCode(400);
+               let mut res = Response::empty(res_status);
+               req.respond(res);
+               continue;
+            },
+        };
 
-            let tempfile = match NamedTempFile::new() {
-                Ok(of) => {
-                    debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
+        let tempfile = match NamedTempFile::new() {
+            Ok(of) => {
+                debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
 
-                    let f = req.as_reader();
-                    let mut buf: [u8; 65535] = [0; 65535];
-                    let mut h = Sha256::new();
-                    loop {
-                        match f.read(&mut buf[..]) {
-                            Ok(v) => {
-                                if v == 0 {
-                                    break;
-                                }
-                                total_size += v;
-                                let data = &buf[..v];
-                                h.update(data);
-                                of.as_file().write(data);
-                            },
-                            Err(e) => {
-                                error!("cannot read from request body: {}", e);
+                let f = req.as_reader();
+                let mut buf: [u8; 65535] = [0; 65535];
+                let mut h = Sha256::new();
+                loop {
+                    match f.read(&mut buf[..]) {
+                        Ok(v) => {
+                            if v == 0 {
                                 break;
-                            },
-                        }
+                            }
+                            total_size += v;
+                            let data = &buf[..v];
+                            h.update(data);
+                            of.as_file().write(data);
+                        },
+                        Err(e) => {
+                            error!("cannot read from request body: {}", e);
+                            break;
+                        },
                     }
+                }
 
-                    if expected_size != total_size {
-                        res_status = StatusCode(400);
-                        let mut res = Response::empty(res_status);
-                        req.respond(res);
-                        continue;
-                    }
-                    let z = h.finalize();
-                    hash = hex::encode(z);
-                    info!("have hash {} for content", hash);
-                    of
-                },
-                Err(e) => {
-                    res_status = StatusCode(500);
+                if expected_size != total_size {
+                    res_status = StatusCode(400);
                     let mut res = Response::empty(res_status);
                     req.respond(res);
                     continue;
                 }
-            };
+                let z = h.finalize();
+                hash = hex::encode(z);
+                info!("have hash {} for content", hash);
+                of
+            },
+            Err(e) => {
+                res_status = StatusCode(500);
+                let mut res = Response::empty(res_status);
+                req.respond(res);
+                continue;
+            }
+        };
 
 
-            path = path.join(hash);
-            fs_copy(tempfile.path(), path);
-        }
+        let final_path = path.join(&hash);
+        fs_copy(tempfile.path(), final_path.as_path());
 
         res_status = StatusCode(200);
-        let mut res = Response::from_string("foo");
+        let mut res = Response::from_string(hash);
         res = res.with_status_code(res_status);
         req.respond(res);
     }
