@@ -230,7 +230,7 @@ fn main() {
         let f = req.as_reader();
         match put_immutable(&path, f, expected_size) {
             Ok(v) => {
-                hash = hex::encode(v); 
+                hash = hex::encode(v.digest); 
             },
             Err(e) => {
                 exec_error(e, req);
