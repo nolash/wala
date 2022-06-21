@@ -9,19 +9,22 @@ use tiny_http::{
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::path::{PathBuf, Path};
-use std::fs::copy as fs_copy;
 use std::fs::File;
-use std::io::Write;
-use sha2::{Sha256, Digest};
+use std::fmt::Error;
 
 use env_logger;
 
 mod auth;
-mod mutable;
+mod record;
 
 use auth::{
     AuthSpec,
     AuthResult,
+};
+use record::{
+    put_immutable,
+    RequestError,
+    RequestErrorType,
 };
 
 use log::{debug, info, error};
@@ -57,6 +60,32 @@ fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
     None
 }
 
+
+fn exec_error(e: RequestError, req: Request) {
+    let res_status: StatusCode;
+    match e.typ {
+        RequestErrorType::WriteError => {
+            res_status = StatusCode(500);
+        },
+        RequestErrorType::AuthError => {
+            res_status = StatusCode(403);
+        },
+        RequestErrorType::FormatError => {
+            res_status = StatusCode(400);
+        },
+        _ => {
+            res_status = StatusCode(500);
+        },
+    }
+    match e.v {
+        Some(v) => {
+            req.respond(Response::from_string(v));
+        },
+        None => {
+            req.respond(Response::empty(res_status));
+        }
+    }
+}
 
 fn main() {
     env_logger::init();
@@ -198,52 +227,16 @@ fn main() {
             },
         };
 
-        let tempfile = match NamedTempFile::new() {
-            Ok(of) => {
-                debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
-
-                let f = req.as_reader();
-                let mut buf: [u8; 65535] = [0; 65535];
-                let mut h = Sha256::new();
-                loop {
-                    match f.read(&mut buf[..]) {
-                        Ok(v) => {
-                            if v == 0 {
-                                break;
-                            }
-                            total_size += v;
-                            let data = &buf[..v];
-                            h.update(data);
-                            of.as_file().write(data);
-                        },
-                        Err(e) => {
-                            error!("cannot read from request body: {}", e);
-                            break;
-                        },
-                    }
-                }
-
-                if expected_size != total_size {
-                    res_status = StatusCode(400);
-                    let mut res = Response::empty(res_status);
-                    req.respond(res);
-                    continue;
-                }
-                let z = h.finalize();
-                hash = hex::encode(z);
-                info!("have hash {} for content", hash);
-                of
+        let f = req.as_reader();
+        match put_immutable(&path, f, expected_size) {
+            Ok(v) => {
+                hash = hex::encode(v); 
             },
             Err(e) => {
-                res_status = StatusCode(500);
-                let mut res = Response::empty(res_status);
-                req.respond(res);
+                exec_error(e, req);
                 continue;
-            }
-        };
-
-        let final_path = path.join(&hash);
-        fs_copy(tempfile.path(), final_path.as_path());
+            },
+        }
 
         res_status = StatusCode(200);
         let mut res = Response::from_string(hash);
