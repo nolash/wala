@@ -1,46 +1,57 @@
-use std::fmt;
-use std::error::Error;
+use crate::auth::{
+    AuthSpec,
+    AuthError,
+    AuthResult,
+};
 
-use crate::auth::AuthSpec;
 
-#[derive(Debug)]
-pub struct AuthError;
-
-impl fmt::Display for AuthError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
-    }
-}
-
-impl Error for AuthError {
-    fn description(&self) -> &str{
-        "auth key signature mismatch"
-    }
-}
-
-pub fn auth_check(auth: AuthSpec) -> bool {
+pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
     if auth.method != "mock" {
-        return false;
+        return Err(AuthError{});
     }
     if auth.key != auth.signature {
-        return false;
+        return Err(AuthError{});
     }
-    true
+    let res = AuthResult{
+        identity: auth.key.as_bytes().to_vec(),
+    };
+    Ok(res)
 }
 
 
-#[test]
-fn test_mock_auth_check() {
-    use super::mock::auth_check;
-    use super::AuthSpec;
+#[cfg(test)]
+mod tests {
+    use super::auth_check;
+    use super::{AuthSpec, AuthResult};
     use std::str::FromStr;
 
-    let mut auth_spec = AuthSpec::from_str("foo:bar:baz").unwrap();
-    assert!(!auth_check(auth_spec));
+    #[test]
+    fn test_mock_auth_check() {
+        let mut auth_spec = AuthSpec::from_str("foo:bar:baz").unwrap();
+        match auth_check(&auth_spec) {
+            Ok(v) => {
+                panic!("expected invalid auth");
+            },
+            Err(e) => {
+            },
+        }
 
-    auth_spec = AuthSpec::from_str("mock:bar:baz").unwrap();
-    assert!(!auth_check(auth_spec));
+        auth_spec = AuthSpec::from_str("mock:bar:baz").unwrap();
+        match auth_check(&auth_spec) {
+            Ok(v) => {
+                panic!("expected invalid auth");
+            },
+            Err(e) => {
+            },
+        }
 
-    auth_spec = AuthSpec::from_str("mock:bar:bar").unwrap();
-    assert!(auth_check(auth_spec));
+        auth_spec = AuthSpec::from_str("mock:bar:bar").unwrap();
+        match auth_check(&auth_spec) {
+            Ok(v) => {
+            },
+            Err(e) => {
+                panic!("{}", e);
+            },
+        }
+    }
 }

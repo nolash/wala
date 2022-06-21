@@ -17,6 +17,11 @@ tempfile = "^3.3.0"
 version = "^0.7.2"
 optional = true
 
+[dependencies.base64]
+version = "^0.13.0"
+optional = true
+
+
 [features]
-pgpauth = ["pgp"]
+pgpauth = ["pgp", "base64"]
 dev = []

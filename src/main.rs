@@ -17,8 +17,12 @@ use sha2::{Sha256, Digest};
 use env_logger;
 
 mod auth;
+mod mutable;
 
-use auth::AuthSpec;
+use auth::{
+    AuthSpec,
+    AuthResult,
+};
 
 use log::{debug, info, error};
 
@@ -28,13 +32,29 @@ use tempfile::NamedTempFile;
 #[cfg(feature = "dev")]
 use crate::auth::mock::auth_check as mock_auth_check;
 
-fn exec_auth(auth_spec: AuthSpec) -> bool {
+#[cfg(feature = "pgpauth")]
+use crate::auth::pgp::auth_check as pgp_auth_check;
+
+fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
     #[cfg(feature = "dev")]
-    if mock_auth_check(auth_spec) {
-        return true;
+    match mock_auth_check(&auth_spec) {
+        Ok(v) => {
+            return Some(v);
+        },
+        Err(e) => {
+        },
     }
 
-    false
+    #[cfg(feature = "pgpauth")]
+    match pgp_auth_check(&auth_spec) {
+        Ok(v) => {
+            return Some(v);
+        },
+        Err(e) => {
+        },
+    }
+
+    None
 }
 
 
@@ -67,7 +87,7 @@ fn main() {
 
         let mut auth_spec: Option<AuthSpec> = None;
         let mut is_auth = false;
-        let mut is_signed = false;
+        let mut is_signed: Option<AuthResult> = None;
 
         for h in req.headers() {
             let k = &h.field;
@@ -86,7 +106,6 @@ fn main() {
             }
         }
      
-
         if is_auth {
             match auth_spec {
                 Some(v) => {
@@ -108,11 +127,14 @@ fn main() {
         
         match req.method() {
             Method::Put => {
-                if !is_signed {
-                    res_status = StatusCode(403);
-                    let mut res = Response::empty(res_status);
-                    req.respond(res);
-                    continue;
+                match is_signed {
+                    Some(v) => {
+                        res_status = StatusCode(403);
+                        let mut res = Response::empty(res_status);
+                        req.respond(res);
+                        continue;
+                    },
+                    _ => {},
                 }
             },
             Method::Get => {
@@ -219,7 +241,6 @@ fn main() {
                 continue;
             }
         };
-
 
         let final_path = path.join(&hash);
         fs_copy(tempfile.path(), final_path.as_path());

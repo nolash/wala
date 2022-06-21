@@ -2,6 +2,10 @@ use std::str::FromStr;
 use std::error::Error;
 use std::fmt;
 
+pub struct AuthResult {
+    pub identity: Vec<u8>,
+}
+
 pub struct AuthSpec {
     pub method: String,
     pub key: String,
@@ -56,5 +60,24 @@ impl fmt::Debug for AuthSpec {
     }
 }
 
+#[derive(Debug)]
+pub struct AuthError;
+
+impl fmt::Display for AuthError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str(self.description())
+    }
+}
+
+impl Error for AuthError {
+    fn description(&self) -> &str{
+        "auth key signature mismatch"
+    }
+}
+
+
 #[cfg(feature = "dev")]
 pub mod mock;
+
+#[cfg(feature = "pgpauth")]
+pub mod pgp;
