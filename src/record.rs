@@ -22,7 +22,7 @@ use tempfile::NamedTempFile;
 
 use log::{debug, info, error};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RequestResultType {
     Found,
     Changed,
