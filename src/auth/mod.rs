@@ -29,6 +29,12 @@ impl AuthResult {
     }
 }
 
+impl fmt::Debug for AuthResult {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str(&hex::encode(&self.identity))
+    }
+}
+
 #[derive(Debug)]
 pub struct AuthSpecError;
 

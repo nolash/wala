@@ -60,6 +60,12 @@ impl fmt::Display for NoAuthError {
 fn exec_response(mut req: Request, r: RequestResult) {
     let res_status: StatusCode;
     match r.typ {
+        RequestResultType::Found => {
+            res_status = StatusCode(200);
+        },
+        RequestResultType::Changed => {
+            res_status = StatusCode(200);
+        },
         RequestResultType::WriteError => {
             res_status = StatusCode(500);
         },
@@ -69,16 +75,34 @@ fn exec_response(mut req: Request, r: RequestResult) {
         RequestResultType::InputError => {
             res_status = StatusCode(400);
         },
+        RequestResultType::RecordError => {
+            res_status = StatusCode(404);
+        },
         _ => {
             res_status = StatusCode(500);
         },
     }
     match r.v {
         Some(v) => {
-            req.respond(Response::from_string(v));
+            let mut res = Response::from_string(v);
+            res = res.with_status_code(res_status);
+            req.respond(res);
+            return;
         },
         None => {
-            req.respond(Response::empty(res_status));
+            match r.f {
+                Some(v) => {
+                    let mut res = Response::from_file(v);
+                    res = res.with_status_code(res_status);
+                    req.respond(res);
+                    return;
+                },
+                None => {
+                    let res = Response::empty(res_status);
+                    req.respond(res);
+                    return;
+                },
+            }
         }
     }
 }
@@ -123,7 +147,6 @@ fn auth_from_headers(req: &Request) -> Option<AuthSpec> {
     for h in req.headers() {
         let k = &h.field;
         if k.equiv("Authorization") {
-            //is_auth = true;
             let v = &h.value;
             let r = AuthSpec::from_str(v.as_str());
             match r {
@@ -202,7 +225,7 @@ fn main() {
 
         let mut path = base_path.clone();
 
-        let url = String::from(req.url());
+        let url = String::from(&req.url()[1..]);
         let method = req.method().clone();
         let expected_size = match req.body_length() {
                 Some(v) => {

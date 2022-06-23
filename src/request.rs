@@ -19,6 +19,9 @@ use crate::auth::{
 };
 use std::io::Read;
 
+use log::{
+    debug,
+};
 
 pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
     match method {
@@ -27,11 +30,13 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                 return RequestResult{
                     typ: RequestResultType::AuthError,
                     v: None,
+                    f: None,
                 };
             }
             if auth_result.active() {
                 let res: RequestResult;
                 let rk = ResourceKey::from_str(url.as_str()).unwrap();
+                debug!("authenticated as {:?} using mutable key {} -> {}", auth_result, &url, &rk);
                 let ptr = rk.pointer_for(&auth_result);
                 match put_mutable(ptr, path, f, expected_size) {
                     Ok(v) => {
@@ -39,6 +44,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         res = RequestResult{
                             typ: RequestResultType::Changed,
                             v: Some(digest_hex),
+                            f: None,
                         };
                     },
                     Err(e) => {
@@ -46,11 +52,13 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         res = RequestResult {
                             typ: RequestResultType::RecordError,
                             v: Some(String::from(err_str)),
+                            f: None,
                         };
                     },
                 };
                 return res;
             } else {
+                debug!("immutable put");
                 let res: RequestResult;
                 match put_immutable(path, f, expected_size) {
                     Ok(v) => {
@@ -58,6 +66,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         res = RequestResult{
                             typ: RequestResultType::Changed,
                             v: Some(digest_hex),
+                            f: None,
                         };
                     },
                     Err(e) => {
@@ -65,6 +74,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         res = RequestResult {
                             typ: RequestResultType::RecordError,
                             v: Some(String::from(err_str)),
+                            f: None,
                         };
                     },
                 };
@@ -78,26 +88,31 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     return RequestResult {
                         typ: RequestResultType::InputError,
                         v: Some(String::from(err_str)),
+                        f: None,
                     };
                 },
                 Ok(v) => {
                     v
                 },
             };
+
             let full_path_buf = path.join(&url);
+            debug!("url {} resolved to {:?}", &url, &full_path_buf);
 
             match get_record(digest, full_path_buf.as_path()) {
                 Some(v) => {
-                    // CONTINUE FROM HERE, v IS Read
                     return RequestResult {
                         typ: RequestResultType::Found,
-                        v: Some(String::new()),
+                        v: None, //Some(String::new()),
+                        f: Some(v),
                     };
                 },
                 None => {
+                    debug!("nooonn");
                     return RequestResult {
                         typ: RequestResultType::RecordError,
-                        v: Some(String::from(&url)),
+                        v: Some(String::new()),
+                        f: None,
                     };
                 },
             };
@@ -107,6 +122,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
     RequestResult {
         typ: RequestResultType::InputError,
         v: Some(String::new()),
+        f: None,
     }
 }
 

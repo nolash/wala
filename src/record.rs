@@ -33,15 +33,22 @@ pub enum RequestResultType {
     RecordError,
 }
 
-#[derive(Debug)]
 pub struct RequestResult {
     pub typ: RequestResultType,
     pub v: Option<String>,
+    pub f: Option<File>,
 }
 
 impl fmt::Display for RequestResult {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.description())
+    }
+}
+
+impl fmt::Debug for RequestResult {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //fmt.write_str(format_args!("{:?}", RequestResultType));
+        write!(fmt, "{:?}", self.typ)
     }
 }
 
@@ -77,6 +84,12 @@ impl FromStr for ResourceKey {
                 v: h.finalize().to_vec(),
             };
             Ok(k)
+    }
+}
+
+impl fmt::Display for ResourceKey {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str(&hex::encode(&self.v))
     }
 }
 
@@ -116,6 +129,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                         let err = RequestResult{
                             typ: RequestResultType::ReadError,
                             v: None,
+                            f: None,
                         };
                         return Err(err);
                     },
@@ -127,6 +141,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                     let err = RequestResult{
                         typ: RequestResultType::ReadError,
                         v: None,
+                        f: None,
                     };
                     return Err(err);
                 }
@@ -141,6 +156,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
             let err = RequestResult{
                 typ: RequestResultType::WriteError,
                 v: None,
+                f: None,
             };
             return Err(err);
         }
@@ -177,7 +193,7 @@ pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_siz
     }
 }
 
-pub fn get(pointer: Vec<u8>, path: &Path) -> Option<impl Read> {
+pub fn get(pointer: Vec<u8>, path: &Path) -> Option<File> { //{ impl Read> {
     let path_canon = match path.canonicalize() {
         Ok(v) => {
             v
@@ -193,8 +209,6 @@ pub fn get(pointer: Vec<u8>, path: &Path) -> Option<impl Read> {
         _ => {},
     }
     None
-
-
 }
 
 #[cfg(test)]
