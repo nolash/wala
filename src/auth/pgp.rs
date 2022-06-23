@@ -64,6 +64,21 @@ fn check_key_bundle(data: Vec<u8>) -> Option<PublicKey> {
 //    None
 }
 
+fn check_sig_single(public_key: &PublicKey, data: Vec<u8>) -> bool {
+    match Signature::from_slice(Version::Old, &data) {
+        Ok(v) => {
+            match v.verify(public_key) {
+                Ok(v) => {
+
+                },
+                _ => {},
+            };
+        },
+        _ => {},
+    }
+    false
+}
+
 pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
     if auth.method != "pgp" {
         return Err(AuthError{});
