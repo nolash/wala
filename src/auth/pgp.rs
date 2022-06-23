@@ -6,6 +6,7 @@ use crate::auth::{
 use pgp::packet::{
     PublicKey,
     PacketParser,
+    Signature,
 };
 //use pgp::errors::Error;
 use pgp::types::{
@@ -18,6 +19,7 @@ use pgp::composed::{
     Deserializable,
 };
 use pgp::ser::Serialize;
+use pgp::de::Deserialize;
 use base64;
 
 fn check_key_single(data: Vec<u8>) -> Option<PublicKey> {
@@ -64,12 +66,12 @@ fn check_key_bundle(data: Vec<u8>) -> Option<PublicKey> {
 //    None
 }
 
-fn check_sig_single(public_key: &PublicKey, data: Vec<u8>) -> bool {
-    match Signature::from_slice(Version::Old, &data) {
+fn check_sig_single(public_key: &PublicKey, signature_data: Vec<u8>, message: Vec<u8>) -> bool {
+    match Signature::from_slice(Version::Old, &signature_data) {
         Ok(v) => {
-            match v.verify(public_key) {
+            match v.verify(public_key, &message[..]) {
                 Ok(v) => {
-
+                    return true;
                 },
                 _ => {},
             };
@@ -103,6 +105,7 @@ pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
 
     println!("key {:?}", key);
 
+
     let res = AuthResult {
         identity: key.fingerprint(),
         error: false,
@@ -116,8 +119,11 @@ mod tests {
     use super::auth_check;
     use super::AuthSpec;
     use std::str::FromStr;
-    use super::check_key_bundle;
-    use super::check_key_single;
+    use super::{
+        check_key_bundle,
+        check_key_single,
+        check_sig_single,
+    };
 
     #[test]
     fn test_pgp_auth_single() {
@@ -142,7 +148,34 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_pgp_single() {
+        let key_single_hex = "0462a9f5a916092b06010401da470f0101074061f06baae76d5115553019e50353890e498652fac873d78003e9e192dd9f3e13";
+        let sig_foo_single_hex = "0401160a0006050262a9f5a9002109108b21a9d88b4a0c7f1621044ab95b491980f89789ae8fde8b21a9d88b4a0c7f2aba0100b7b06c424cdb67bba97463d2eb3035ead329f62c92fb6100b629df003748131200fd17e8b6dc866aa1662b93a17ff599334002de273b800fc7160634516187b41407";
 
+        let key_single = hex::decode(&key_single_hex).unwrap();
+        let key_single_base64 = base64::encode(&key_single);
+
+        let sig_foo_single = hex::decode(&sig_foo_single_hex).unwrap();
+        let sig_foo_single_base64 = base64::encode(&sig_foo_single);
+
+        let auth_spec_str = format!("pgp:{}:{}", key_single_base64, sig_foo_single_base64);
+        let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
+
+        let r = match check_key_single(key_single) {
+            Some(v) => {
+                if !check_sig_single(&v, sig_foo_single, b"foo".to_vec()) {
+                    panic!("invalid");
+                }
+            },
+            None => {
+                panic!("no public key");
+            },
+        };
+
+    }
+
+ 
     #[test]
     fn test_pgp_bundle() {
         let key_bundle_hex = "99018d045fa148e8010c00a990f4048c00e39d0b63980b1d3d8a71e4df8e3090588f50c0a0862c0ed57abdb701250b7de0e9b7c65ed1061bfd9b6a0b8333ec891c230841515b2352bb4054a790858dc5df9b44b82b67a0c787ab1674e74920bd4bab6654dad53445ef49c13ab0a027989ec9357d44c49b848963db50345627586823df8047ef0438d78944ba3f8f4369f92e081439f43ecc5d4fe481d06634cf6704823be3a0faf8956f4801bf05b7d4c3629fa63b37a39f5160ec2b88ae5051480bfeb23edb550c35e5d8754a96f0b52e71c6e6c26bc1311062380725e6797751d0a649f8403992c3b4892b10ffa8a948e75283e8b49e2382945366d4ffce85b52c600c4251f897eb9e05327db3a315411232777bb974a47ee4b6875ac4472d3e87d02c103d2d20d421e8ea26c5349e9c3f0c70c3daebf11befc0ea5815f4bf044e5be0a7c47378e09fd9b1ee88a618cfceedc6f905c2c5e0535f936716e4fa6b4205b9e0b153cb35aad8fca1a45492feca1707443d0f978c1751de9ab90b98eaf43d02e2a2093d567b6b0011010001b41e4d6572204d616e203c6d65726d616e4067726579736b756c6c2e636f6d3e8901d404130108003e162104f3faf668e82ef5124d5187baef26f4682343f69205025fa148e8021b03050903c26700050b0908070206150a09080b020416020301021e01021780000a0910ef26f4682343f692f08b0c0084525b03250ad394c929f0f3f35ef9ecde3bd924ed07cb1faf46aec2646bf19b35bad1d154cd1bfe39234eea38b8936bed85552932a013bfab27ea70866df0953438e0b54b8c1c96022ffb35683713d6f67a59beaa47e09bf45f16ddef92e3b1192c99c8814587efedc2fea20013efafac3b319c2b15a4b450fde0d5519ae5316a83a28dc6877d1ff80f2f1bf8e65bad5dfdd5bc1653269af5a719fb68b1e51731322203596cffcdd50178e064ab37f9340df2fadf5b198dab945da6576e2e711ac28a098c09d60deae7cee98ba9937535779f484a815ba2a4ef211b2e7ef9878ebfe857b02c43c3267e4a1bfea9abddfd26a9c58802744b9ebb038d2057ec22c58277748272329789c4d310532ef27bc199fef1ba8da1bfabc43b1a228e55d5fb82e41abb24741f19320f0fcb0131e832e60e89209c08532eb4dcd5285b90eb50df23638f214aec10e9aa86ec25a97a77c4a96e171c5092dea5a4a6b24d02809b138e1025e84c17d046204e8de43f97d272aadb0fc57041a4fc09c138ac2578b9018d045fa148e8010c00c7b694d3d64e31fba14de4e794469280688b283c7821909da56fac969844826be0da47a19700a95b7742fd50c7172ea9da0a7e12a59bdb7fc84fe1f251816751979b9537fae6c956d92d456333c35c55d15122b4ec372bb898b066c9d737880ffdd2c09310e8fd7bb0d2bf12e698b163a70339c572ddeb3d25ebef46fb0a0d980457552dd5fd1af2167b72282dc04c2a95949a10046e394e3da0308ba7a5a7532575a6762a28a1e196dec2de52fe4c33df26481e128ca46526a18f363c7994ee8c9896d979767f2ff68ee84b175100f687cd96a61965e2ba466163e21d3098a99622a8d62be84df1529cdcbd6569dee09854958fe83b35d7ba7b068c8a573d34cb10bd95e745ddea6992d656a85568c02322850137ebbe8bdc30d366c9c97f5ffcc4a521e54d8c8f7941be396f08408a8b4d2aa3c6f59a7fce9254232794f85b34eb1fa5feff3a5ecfc6649ad70e6b21dd50a0ffeb8ae867d7576d71bf869e40f945a3f2849560a83640d03002767e6a2676295444fd8eb50c280583a09cc7f700110100018901bc041801080026162104f3faf668e82ef5124d5187baef26f4682343f69205025fa148e8021b0c050903c26700000a0910ef26f4682343f69220f70bff78ea2f60364a60beb3404ee2f30f11f0a96b6819fefa356b3ce3522799bb95a12316f98a4d15e93ef9116e45d0e7998fda97234ea05be20cf3e0ba226520691de5e3b52306204fabeb8a3bd42e4ff9ceb5b4acd9d5e84cd08b31037b325add5018b1fa59ea6591920e087a9ffb95c80630f12878737ff7b611d4891ef1cd5286c402834fc2e8563847b214f362e42af0caa57efc1523878448b6abc90f98fa3e7e54b0f348b80f0279c8a85fee8b62508de7c9c66fd52e860d68f00676aa33feefd1d139b3f786d951f2e3810683a14a67c58cb02b624695fde63d9dcf3568f1273b904c5e467b96f3fd3ca59d1608c814fb283ee868a1ceeb67e10db60f2787fde2264de01ea79d301e3f7e3314396451b5f8007b9d5d4edbbf14f939493dc7d736b63ef1c3140768486adbe26c616d04570dbb44b85bca69c17cb8d555492d345d27406bd4d93128730e29af66640c74244a795b35ae24ba394bed5cdba67120c8e9a2e5eafd19a22e5525400e8bc1bbea73fcebf5cbfde351ef2167f2a579";
