@@ -83,6 +83,7 @@ impl FromStr for ResourceKey {
 impl ResourceKey {
     pub fn pointer_for(&self, subject: &AuthResult) -> Vec<u8> {
         let mut h = Sha256::new();
+        debug!("update {:?} {:?}", hex::encode(&self.v), hex::encode(&subject.identity));
         h.update(&self.v);
         h.update(&subject.identity);
         h.finalize().to_vec()
