@@ -4,28 +4,30 @@ use tiny_http::{
     Request,
     Response,
     StatusCode,
-    Method,
 };
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::path::{PathBuf, Path};
 use std::fs::File;
-use std::fmt::Error;
+use std::error::Error;
+use std::fmt;
 
 use env_logger;
 
 mod auth;
-mod record;
-
 use auth::{
     AuthSpec,
     AuthResult,
 };
+
+mod record;
 use record::{
-    put_immutable,
-    RequestError,
-    RequestErrorType,
+    RequestResult,
+    RequestResultType,
 };
+
+mod request;
+use request::process_method;
 
 use log::{debug, info, error};
 
@@ -37,6 +39,50 @@ use crate::auth::mock::auth_check as mock_auth_check;
 
 #[cfg(feature = "pgpauth")]
 use crate::auth::pgp::auth_check as pgp_auth_check;
+
+
+#[derive(Debug)]
+pub struct NoAuthError;
+
+impl Error for NoAuthError {
+    fn description(&self) -> &str{
+        "no auth"
+    }
+}
+
+impl fmt::Display for NoAuthError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str(self.description())
+    }
+}
+
+
+fn exec_response(mut req: Request, r: RequestResult) {
+    let res_status: StatusCode;
+    match r.typ {
+        RequestResultType::WriteError => {
+            res_status = StatusCode(500);
+        },
+        RequestResultType::AuthError => {
+            res_status = StatusCode(403);
+        },
+        RequestResultType::InputError => {
+            res_status = StatusCode(400);
+        },
+        _ => {
+            res_status = StatusCode(500);
+        },
+    }
+    match r.v {
+        Some(v) => {
+            req.respond(Response::from_string(v));
+        },
+        None => {
+            req.respond(Response::empty(res_status));
+        }
+    }
+}
+
 
 fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
     #[cfg(feature = "dev")]
@@ -61,29 +107,69 @@ fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
 }
 
 
-fn exec_error(e: RequestError, req: Request) {
-    let res_status: StatusCode;
-    match e.typ {
-        RequestErrorType::WriteError => {
-            res_status = StatusCode(500);
-        },
-        RequestErrorType::AuthError => {
-            res_status = StatusCode(403);
-        },
-        RequestErrorType::FormatError => {
-            res_status = StatusCode(400);
+fn process_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
+    if !auth_spec.valid() {
+        let r = AuthResult{
+            identity: vec!(),
+            error: true,
+        };
+        return Some(r);
+    }
+    exec_auth(auth_spec)
+}
+
+
+fn auth_from_headers(req: &Request) -> Option<AuthSpec> {
+    for h in req.headers() {
+        let k = &h.field;
+        if k.equiv("Authorization") {
+            //is_auth = true;
+            let v = &h.value;
+            let r = AuthSpec::from_str(v.as_str());
+            match r {
+                Ok(v) => {
+                    return Some(v);
+                },
+                Err(e) => {
+                    error!("malformed auth string: {}", &h.value);
+                    let method = req.method();
+                    let r = AuthSpec{
+                        method: String::from(method.as_str()),
+                        key: String::new(),
+                        signature: String::new(),
+                    };
+                    return Some(r);
+                }
+            }
+        }
+    }
+    None
+}
+
+
+fn process_request(mut req: &Request) -> AuthResult {
+    let r: Option<AuthResult>;
+    
+    r = match auth_from_headers(req) {
+        Some(v) => {
+            process_auth(v)
         },
         _ => {
-            res_status = StatusCode(500);
+            None
         },
-    }
-    match e.v {
+    };
+
+    match r {
         Some(v) => {
-            req.respond(Response::from_string(v));
+            return v;
         },
-        None => {
-            req.respond(Response::empty(res_status));
-        }
+        _ => {},
+    };
+    
+    // is not auth
+    AuthResult{
+         identity: vec!(),
+         error: false,
     }
 }
 
@@ -102,9 +188,9 @@ fn main() {
     let srv = Server::new(srv_cfg).unwrap();
 
     loop {
-        let r = srv.recv();
+        let b = srv.recv();
         let mut req: Request;
-        match r {
+        match b {
             Ok(v) => req = v,
             Err(e) => {
                 error!("{}", e);
@@ -112,135 +198,24 @@ fn main() {
             }
         };
 
-        let mut res_status: StatusCode;
+        let res  = process_request(&req);
 
-        let mut auth_spec: Option<AuthSpec> = None;
-        let mut is_auth = false;
-        let mut is_signed: Option<AuthResult> = None;
+        let mut path = base_path.clone();
 
-        for h in req.headers() {
-            let k = &h.field;
-            if k.equiv("Authorization") {
-                is_auth = true;
-                let v = &h.value;
-                let r = AuthSpec::from_str(v.as_str());
-                match r {
-                    Ok(v) => {
-                        auth_spec = Some(v);
-                    },
-                    Err(e) => {
-                        error!("malformed auth string: {}", &h.value);
-                    }
-                }
-            }
-        }
-     
-        if is_auth {
-            match auth_spec {
+        let url = String::from(req.url());
+        let method = req.method().clone();
+        let expected_size = match req.body_length() {
                 Some(v) => {
-                    debug!("have auth {:?}", v);
-                    is_signed = exec_auth(v);
+                    v 
                 },
                 None => {
-                    debug!("invalid auth");
-                    res_status = StatusCode(401);
-                    let mut res = Response::empty(res_status);
-                    req.respond(res);
-                    continue;
-                }
+                    0
+                },
             };
-        }
-
-        let url = &req.url()[1..];
-        let mut path = base_path.clone();
-        
-        match req.method() {
-            Method::Put => {
-                match is_signed {
-                    Some(v) => {
-                        res_status = StatusCode(403);
-                        let mut res = Response::empty(res_status);
-                        req.respond(res);
-                        continue;
-                    },
-                    _ => {},
-                }
-            },
-            Method::Get => {
-                let path_base = path.join(url);
-                let path_maybe: Option<PathBuf>;
-                let path_maybe = match path_base.canonicalize() {
-                    Ok(v) => {
-                        Some(v)
-                    },
-                    Err(e) => {
-                        None
-                    },
-                };
-
-                match path_maybe {
-                    Some(v) => {
-                        match File::open(v) {
-                            Ok(f) => {
-                                res_status = StatusCode(200);
-                                let mut res = Response::from_file(f);
-                                req.respond(res);
-                                continue;
-                            },
-                            Err(e) => {
-                                res_status = StatusCode(404);
-                                let mut res = Response::empty(res_status);
-                                req.respond(res);
-                                continue;
-                            },
-                        }
-                    },
-                    None => {
-                        res_status = StatusCode(404);
-                        let mut res = Response::empty(res_status);
-                        req.respond(res);
-                        continue;
-                    },
-                }
-            },
-            _ => {
-                    res_status = StatusCode(400);
-                    let mut res = Response::empty(res_status);
-                    req.respond(res);
-                    continue;
-            },
-        }
-
-        info!("processing request {} for {} -> {}", req.method(), url, path.to_str().unwrap());
-
-        let hash: String;
-        let mut total_size: usize = 0;
-        let expected_size = match req.body_length() {
-            Some(v) => {
-                v 
-            },
-            None => {
-               res_status = StatusCode(400);
-               let mut res = Response::empty(res_status);
-               req.respond(res);
-               continue;
-            },
-        };
-
         let f = req.as_reader();
-        match put_immutable(&path, f, expected_size) {
-            Ok(v) => {
-                hash = hex::encode(v.digest); 
-            },
-            Err(e) => {
-                exec_error(e, req);
-                continue;
-            },
-        }
 
-        res_status = StatusCode(200);
-        let mut res = Response::from_string(hash);
-        res = res.with_status_code(res_status);
-        req.respond(res);
+        let mut result = process_method(&method, url, f, expected_size, &path, res);
+        
+        exec_response(req, result);
     }
 }

@@ -49,6 +49,7 @@ pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
 
     let res = AuthResult {
         identity: key.fingerprint(),
+        error: false,
     };
     Ok(res)
 }

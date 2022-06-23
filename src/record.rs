@@ -17,32 +17,35 @@ use sha2::{Sha256, Digest};
 use std::fmt;
 
 use crate::auth::AuthResult;
-
+use tiny_http::Request;
 use tempfile::NamedTempFile;
 
 use log::{debug, info, error};
 
 #[derive(Debug)]
-pub enum RequestErrorType {
+pub enum RequestResultType {
+    Found,
+    Changed,
     ReadError,
     WriteError,
     AuthError,
-    FormatError,
+    InputError,
+    RecordError,
 }
 
 #[derive(Debug)]
-pub struct RequestError {
-    pub typ: RequestErrorType,
+pub struct RequestResult {
+    pub typ: RequestResultType,
     pub v: Option<String>,
 }
 
-impl fmt::Display for RequestError {
+impl fmt::Display for RequestResult {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.description())
     }
 }
 
-impl Error for RequestError {
+impl Error for RequestResult {
     fn description(&self) -> &str {
         match &self.v {
             Some(v) => {
@@ -87,14 +90,13 @@ impl ResourceKey {
 }
 
 
-pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestError> {
+pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
     let z: Vec<u8>;
     let hash: String;
     let mut total_size: usize = 0;
     let tempfile = match NamedTempFile::new() {
         Ok(of) => {
-//            debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
-            debug!("writing to tempfile {:?}", of.path());
+            debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
             let mut buf: [u8; 65535] = [0; 65535];
             let mut h = Sha256::new();
             loop {
@@ -110,8 +112,8 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                     },
                     Err(e) => {
                         error!("cannot read from request body: {}", e);
-                        let err = RequestError{
-                            typ: RequestErrorType::ReadError,
+                        let err = RequestResult{
+                            typ: RequestResultType::ReadError,
                             v: None,
                         };
                         return Err(err);
@@ -121,8 +123,8 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
     
             if expected_size > 0 {
                 if expected_size != total_size {
-                    let err = RequestError{
-                        typ: RequestErrorType::ReadError,
+                    let err = RequestResult{
+                        typ: RequestResultType::ReadError,
                         v: None,
                     };
                     return Err(err);
@@ -135,8 +137,8 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
             of
         },
         Err(e) => {
-            let err = RequestError{
-                typ: RequestErrorType::WriteError,
+            let err = RequestResult{
+                typ: RequestResultType::WriteError,
                 v: None,
             };
             return Err(err);
@@ -154,7 +156,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
     Ok(r)
 }
 
-pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestError> {
+pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
     let record = put_immutable(path, f, expected_size);
 
     let mutable_ref = hex::encode(&pointer);
@@ -172,6 +174,26 @@ pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_siz
             return Err(e);
         }
     }
+}
+
+pub fn get(pointer: Vec<u8>, path: &Path) -> Option<impl Read> {
+    let path_canon = match path.canonicalize() {
+        Ok(v) => {
+            v
+        },
+        Err(e) => {
+            return None;
+        },
+    };
+    match File::open(path_canon) {
+        Ok(f) => {
+            return Some(f);
+        },
+        _ => {},
+    }
+    None
+
+
 }
 
 #[cfg(test)]
@@ -196,6 +218,7 @@ mod tests {
         };
         let subject = AuthResult{
             identity: vec!(0x62, 0x61, 0x72),
+            error: false,
         };
         let r = resource.pointer_for(&subject);
 
@@ -207,7 +230,7 @@ mod tests {
     fn test_immutable() {
         let d = tempdir().unwrap();
         let b = b"foo";
-        put_immutable(d.path(), &b[..], 3);
+        put_immutable(d.path().clone(), &b[..], 3);
         
         let immutable_path_buf = d.path().join("2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae");
         let immutable_path = immutable_path_buf.as_path();
@@ -226,7 +249,7 @@ mod tests {
         let d = tempdir().unwrap();
         let b = b"foo";
         let ptr = b"foobar";
-        put_mutable(ptr.to_vec(), d.path(), &b[..], 3);
+        put_mutable(ptr.to_vec(), d.path().clone(), &b[..], 3);
 
         let foobar_hex = hex::encode(ptr);
         let mutable_path_buf = d.path().join(foobar_hex);

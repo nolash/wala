@@ -14,6 +14,7 @@ pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
     }
     let res = AuthResult{
         identity: auth.key.as_bytes().to_vec(),
+        error: false,
     };
     Ok(res)
 }

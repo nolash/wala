@@ -4,12 +4,29 @@ use std::fmt;
 
 pub struct AuthResult {
     pub identity: Vec<u8>,
+    pub error: bool,
 }
 
 pub struct AuthSpec {
     pub method: String,
     pub key: String,
     pub signature: String,
+}
+
+impl AuthSpec {
+    pub fn valid(&self) -> bool {
+        self.key.len() > 0
+    }
+}
+
+impl AuthResult {
+    pub fn active(&self) -> bool {
+        self.identity.len() > 0
+    }
+
+    pub fn valid(&self) -> bool {
+        !self.error
+    }
 }
 
 #[derive(Debug)]
@@ -26,6 +43,7 @@ impl fmt::Display for AuthSpecError {
         fmt.write_str(self.description())
     }
 }
+
 
 impl FromStr for AuthSpec {
     type Err = AuthSpecError;
