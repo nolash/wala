@@ -55,7 +55,26 @@ impl FromStr for AuthSpec {
     type Err = AuthSpecError;
 
     fn from_str(s: &str) -> Result<AuthSpec, AuthSpecError> {
-        let mut auth_fields = s.split(":");
+        let mut auth_kv = s.split(" ");
+        match auth_kv.next() {
+            Some(v) => {
+                if v != "PUBSIG" {
+                    return Err(AuthSpecError{});
+                }
+            },
+            _ => {},
+        };
+
+        let ss = match auth_kv.next() {
+            Some(v) => {
+                v
+            },
+            _ => {
+                return Err(AuthSpecError{});
+            },
+        };
+
+        let mut auth_fields = ss.split(":");
         if auth_fields.clone().count() != 3 {
             return Err(AuthSpecError{})
         }

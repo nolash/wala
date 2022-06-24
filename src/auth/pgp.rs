@@ -186,7 +186,7 @@ mod tests {
         let sig_foo_single = hex::decode(&sig_foo_single_hex).unwrap();
         let sig_foo_single_base64 = base64::encode(&sig_foo_single);
 
-        let auth_spec_str = format!("pgp:{}:{}", key_single_base64, sig_foo_single_base64);
+        let auth_spec_str = format!("PUBSIG pgp:{}:{}", key_single_base64, sig_foo_single_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
         let data = b"foo";
@@ -241,7 +241,7 @@ mod tests {
         let sig_foo_single = hex::decode(&sig_foo_single_hex).unwrap();
         let sig_foo_single_base64 = base64::encode(&sig_foo_single);
 
-        let auth_spec_str = format!("pgp:{}:{}", key_single_base64, sig_foo_single_base64);
+        let auth_spec_str = format!("PUBSIG pgp:{}:{}", key_single_base64, sig_foo_single_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
         let data = b"foo";
@@ -266,7 +266,7 @@ mod tests {
         let sig_foo_bundle = hex::decode(&sig_foo_bundle_hex).unwrap();
         let sig_foo_bundle_base64 = base64::encode(&sig_foo_bundle);
 
-        let auth_spec_str = format!("pgp:{}:{}", key_bundle_base64, sig_foo_bundle_base64);
+        let auth_spec_str = format!("PUBSIG pgp:{}:{}", key_bundle_base64, sig_foo_bundle_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
         let data = b"foo";
