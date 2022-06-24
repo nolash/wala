@@ -4,6 +4,8 @@ use tiny_http::{
     Request,
     Response,
     StatusCode,
+    Header,
+    Method,
 };
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
@@ -11,6 +13,12 @@ use std::path::{PathBuf, Path};
 use std::fs::File;
 use std::error::Error;
 use std::fmt;
+use std::io::{
+    copy as io_copy,
+    Read,
+    Seek,
+    empty,
+};
 
 use env_logger;
 
@@ -31,7 +39,7 @@ use request::process_method;
 
 use log::{debug, info, error};
 
-use tempfile::NamedTempFile;
+use tempfile::tempfile;
 
 
 #[cfg(feature = "dev")]
@@ -57,7 +65,7 @@ impl fmt::Display for NoAuthError {
 }
 
 
-fn exec_response(mut req: Request, r: RequestResult) {
+fn exec_response(req: Request, r: RequestResult) {
     let res_status: StatusCode;
     match r.typ {
         RequestResultType::Found => {
@@ -108,9 +116,9 @@ fn exec_response(mut req: Request, r: RequestResult) {
 }
 
 
-fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
+fn exec_auth(auth_spec: AuthSpec, data: impl Read, data_length: usize) -> Option<AuthResult> {
     #[cfg(feature = "dev")]
-    match mock_auth_check(&auth_spec) {
+    match mock_auth_check(&auth_spec, data, data_length) {
         Ok(v) => {
             return Some(v);
         },
@@ -119,7 +127,7 @@ fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
     }
 
     #[cfg(feature = "pgpauth")]
-    match pgp_auth_check(&auth_spec) {
+    match pgp_auth_check(&auth_spec, data, data_length) {
         Ok(v) => {
             return Some(v);
         },
@@ -131,7 +139,7 @@ fn exec_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
 }
 
 
-fn process_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
+fn process_auth(auth_spec: AuthSpec, data: impl Read, data_length: usize) -> Option<AuthResult> {
     if !auth_spec.valid() {
         let r = AuthResult{
             identity: vec!(),
@@ -139,12 +147,12 @@ fn process_auth(auth_spec: AuthSpec) -> Option<AuthResult> {
         };
         return Some(r);
     }
-    exec_auth(auth_spec)
+    exec_auth(auth_spec, data, data_length)
 }
 
 
-fn auth_from_headers(req: &Request) -> Option<AuthSpec> {
-    for h in req.headers() {
+fn auth_from_headers(headers: &[Header], method: &Method) -> Option<AuthSpec> {
+    for h in headers {
         let k = &h.field;
         if k.equiv("Authorization") {
             let v = &h.value;
@@ -155,7 +163,6 @@ fn auth_from_headers(req: &Request) -> Option<AuthSpec> {
                 },
                 Err(e) => {
                     error!("malformed auth string: {}", &h.value);
-                    let method = req.method();
                     let r = AuthSpec{
                         method: String::from(method.as_str()),
                         key: String::new(),
@@ -170,12 +177,15 @@ fn auth_from_headers(req: &Request) -> Option<AuthSpec> {
 }
 
 
-fn process_request(mut req: &Request) -> AuthResult {
+fn process_request(req: &mut Request, f: &File) -> AuthResult {
+    let headers = req.headers();
+    let method = req.method();
+
     let r: Option<AuthResult>;
     
-    r = match auth_from_headers(req) {
+    r = match auth_from_headers(headers, method) {
         Some(v) => {
-            process_auth(v)
+            process_auth(v, f, 0)
         },
         _ => {
             None
@@ -195,6 +205,7 @@ fn process_request(mut req: &Request) -> AuthResult {
          error: false,
     }
 }
+
 
 fn main() {
     env_logger::init();
@@ -221,9 +232,6 @@ fn main() {
             }
         };
 
-        let res  = process_request(&req);
-
-        let mut path = base_path.clone();
 
         let url = String::from(&req.url()[1..]);
         let method = req.method().clone();
@@ -236,9 +244,35 @@ fn main() {
                 },
             };
         let f = req.as_reader();
+        let mut path = base_path.clone();
+        let mut res: AuthResult = AuthResult{
+            identity: vec!(), 
+            error: false,
+        };
+        let rw: Option<File> = match tempfile() {
+            Ok(mut v) => {
+                io_copy(f, &mut v);
+                v.rewind();
+                res = process_request(&mut req, &mut v);
+                v.rewind();
+                Some(v)
+            },
+            Err(e) => {
+                None
+            },
+        };
 
-        let mut result = process_method(&method, url, f, expected_size, &path, res);
-        
+        let mut result: RequestResult;
+        match rw {
+            Some(v) => {
+                result = process_method(&method, url, v, expected_size, &path, res);
+            },
+            None => {
+                let v = empty();
+                result = process_method(&method, url, v, expected_size, &path, res);
+            },
+        };
+
         exec_response(req, result);
     }
 }

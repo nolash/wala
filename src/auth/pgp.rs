@@ -1,3 +1,4 @@
+use std::io::Read;
 use crate::auth::{
     AuthSpec,
     AuthError,
@@ -69,10 +70,10 @@ fn check_key_bundle(data: &Vec<u8>) -> Option<PublicKey> {
 //    None
 }
 
-fn check_sig_single(public_key: &PublicKey, signature_data: Vec<u8>, message: Vec<u8>) -> bool {
+fn check_sig_single(public_key: &PublicKey, signature_data: Vec<u8>, mut message: impl Read, message_length: usize) -> bool {
     match Signature::from_slice(Version::Old, &signature_data) {
         Ok(v) => {
-            match v.verify(public_key, &message[..]) {
+            match v.verify(public_key, message) {
                 Ok(v) => {
                     return true;
                 },
@@ -84,10 +85,12 @@ fn check_sig_single(public_key: &PublicKey, signature_data: Vec<u8>, message: Ve
     false
 }
 
-fn check_sig_bundle(public_key: &PublicKey, signature_data: Vec<u8>, message: Vec<u8>) -> bool {
+fn check_sig_bundle(public_key: &PublicKey, signature_data: Vec<u8>, mut message: impl Read, message_length: usize) -> bool {
     match StandaloneSignature::from_bytes(&signature_data[..]) {
         Ok(v) => {
-            match v.verify(public_key, &message[..]) {
+            let mut data: Vec<u8> = vec!();
+            let r = message.read_to_end(&mut data);
+            match v.verify(public_key, &data) {
                 Ok(v) => {
                     return true;
                 },
@@ -99,28 +102,47 @@ fn check_sig_bundle(public_key: &PublicKey, signature_data: Vec<u8>, message: Ve
     false
 }
 
-pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
+pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Result<AuthResult, AuthError> {
     if auth.method != "pgp" {
         return Err(AuthError{});
     }
+
     let key_data = match base64::decode(&auth.key) {
         Ok(v) => {
-            debug!("found valid raw key");
             v
         },
         Err(e) => {
             return Err(AuthError{});
         }
     };
+
+    let sig_data = match base64::decode(&auth.signature) {
+        Ok(v) => {
+            v
+        },
+        Err(e) => {
+            return Err(AuthError{});
+        }
+    };
+
     
     let key = match check_key_single(&key_data) {
         Some(v) => {
+            if !check_sig_single(&v, sig_data, data, data_length) {
+                error!("invalid raw signature for {:?}", hex::encode(&v.fingerprint()));
+                return Err(AuthError{});
+            }
+            debug!("found valid raw key {:?}", hex::encode(&v.fingerprint()));
             v
         },
         None => {
             let key = match check_key_bundle(&key_data) {
                 Some(v) => {
-                    debug!("found valid key bundle");
+                    if !check_sig_bundle(&v, sig_data, data, data_length) {
+                        error!("invalid bundle signature for {:?}", hex::encode(&v.fingerprint()));
+                        return Err(AuthError{});
+                    }
+                    debug!("found valid key bundle {:?}", hex::encode(&v.fingerprint()));
                     v
                 },
                 None => {
@@ -130,8 +152,6 @@ pub fn auth_check(auth: &AuthSpec) -> Result<AuthResult, AuthError> {
             key
         },
     };
-
-    println!("key {:?}", key);
 
 
     let res = AuthResult {
@@ -169,9 +189,10 @@ mod tests {
         let auth_spec_str = format!("pgp:{}:{}", key_single_base64, sig_foo_single_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
+        let data = b"foo";
         let r = match check_key_single(&key_single) {
             Some(v) => {
-                if !check_sig_single(&v, sig_foo_single, b"foo".to_vec()) {
+                if !check_sig_single(&v, sig_foo_single, &data[..], 0) {
                     panic!("invalid");
                 }
             },
@@ -194,9 +215,11 @@ mod tests {
         let sig_foo_bundle = hex::decode(&sig_foo_bundle_hex).unwrap();
         let sig_foo_bundle_base64 = base64::encode(&sig_foo_bundle);
 
+        let data = b"foo";
+
         let r = match check_key_bundle(&key_bundle) {
             Some(v) => {
-                if !check_sig_bundle(&v, sig_foo_bundle, b"foo".to_vec()) {
+                if !check_sig_bundle(&v, sig_foo_bundle, &data[..], 0) {
                     panic!("invalid");
                 }
             },
@@ -221,7 +244,9 @@ mod tests {
         let auth_spec_str = format!("pgp:{}:{}", key_single_base64, sig_foo_single_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
-        match auth_check(&auth_spec) {
+        let data = b"foo";
+
+        match auth_check(&auth_spec, &data[..], 0) {
             Ok(v) => {
             },
             Err(e) => {
@@ -244,7 +269,9 @@ mod tests {
         let auth_spec_str = format!("pgp:{}:{}", key_bundle_base64, sig_foo_bundle_base64);
         let auth_spec = AuthSpec::from_str(&auth_spec_str).unwrap();
 
-        match auth_check(&auth_spec) {
+        let data = b"foo";
+
+        match auth_check(&auth_spec, &data[..], 0) {
             Ok(v) => {
             },
             Err(e) => {

@@ -21,6 +21,7 @@ use std::io::Read;
 
 use log::{
     debug,
+    error,
 };
 
 pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
@@ -36,7 +37,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
             if auth_result.active() {
                 let res: RequestResult;
                 let rk = ResourceKey::from_str(url.as_str()).unwrap();
-                debug!("authenticated as {:?} using mutable key {} -> {}", auth_result, &url, &rk);
+                debug!("mutable put, authenticated as {:?} using mutable key {} -> {}", auth_result, &url, &rk);
                 let ptr = rk.pointer_for(&auth_result);
                 match put_mutable(ptr, path, f, expected_size) {
                     Ok(v) => {
@@ -48,7 +49,8 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         };
                     },
                     Err(e) => {
-                        let err_str = format!("{}", e);
+                        let err_str = format!("{:?}", e);
+                        error!("{}", err_str);
                         res = RequestResult {
                             typ: RequestResultType::RecordError,
                             v: Some(String::from(err_str)),

@@ -174,10 +174,10 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
 }
 
 pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
-    let record = put_immutable(path, f, expected_size);
-
     let mutable_ref = hex::encode(&pointer);
     let link_path_buf = path.join(&mutable_ref);
+    
+    let record = put_immutable(path, f, expected_size);
     match record {
         Ok(v) => {
             symlink(&v.path, &link_path_buf);
