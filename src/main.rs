@@ -116,7 +116,7 @@ fn exec_response(req: Request, r: RequestResult) {
 }
 
 
-fn exec_auth(auth_spec: AuthSpec, data: impl Read, data_length: usize) -> Option<AuthResult> {
+fn exec_auth(auth_spec: AuthSpec, data: &File, data_length: usize) -> Option<AuthResult> {
     #[cfg(feature = "dev")]
     match mock_auth_check(&auth_spec, data, data_length) {
         Ok(v) => {
@@ -139,7 +139,7 @@ fn exec_auth(auth_spec: AuthSpec, data: impl Read, data_length: usize) -> Option
 }
 
 
-fn process_auth(auth_spec: AuthSpec, data: impl Read, data_length: usize) -> Option<AuthResult> {
+fn process_auth(auth_spec: AuthSpec, data: &File, data_length: usize) -> Option<AuthResult> {
     if !auth_spec.valid() {
         let r = AuthResult{
             identity: vec!(),
