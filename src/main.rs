@@ -7,6 +7,7 @@ use tiny_http::{
     Header,
     Method,
 };
+use mime::Mime;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::path::{PathBuf, Path};
@@ -48,6 +49,8 @@ use crate::auth::mock::auth_check as mock_auth_check;
 #[cfg(feature = "pgpauth")]
 use crate::auth::pgp::auth_check as pgp_auth_check;
 
+#[cfg(feature = "meta")]
+mod meta;
 
 #[derive(Debug)]
 pub struct NoAuthError;
@@ -206,6 +209,41 @@ fn process_request(req: &mut Request, f: &File) -> AuthResult {
     }
 }
 
+fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
+    let headers = req.headers();
+    let mut m: Option<mime::Mime> = None;
+   
+    for h in headers {
+        let k = &h.field;
+        if k.equiv("Content-Type") {
+            let v = &h.value;
+            m = match Mime::from_str(v.as_str()) {
+                Err(e) => {
+                    error!("invalid mime type");
+                    return None;
+                },
+                Ok(v) => {
+                    Some(v)
+                },
+            };
+        }
+    }
+
+    match m {
+        Some(v) => {
+            match meta::register_type(path, digest, v) {
+                Err(e) => {
+                    error!("could not register content type: {}", &e);
+                },
+                _ => {},
+            };
+        },
+        _ => {},
+    };
+
+    None
+}
+
 
 fn main() {
     env_logger::init();
@@ -272,6 +310,15 @@ fn main() {
                 result = process_method(&method, url, v, expected_size, &path, res);
             },
         };
+
+        match &result.typ {
+            RequestResultType::Changed => {
+                let digest_hex = result.v.clone().unwrap();
+                let digest = hex::decode(&digest_hex).unwrap();
+                process_meta(&req, &path, digest);
+            },
+            _ => {},
+        }
 
         exec_response(req, result);
     }

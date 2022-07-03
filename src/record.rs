@@ -254,7 +254,6 @@ mod tests {
 
         let mut r = read(immutable_path).unwrap();
         assert_eq!(r, b.to_vec());
-
     }
     
     #[test]

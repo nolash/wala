@@ -12,6 +12,12 @@ log = "^0.4"
 sha2 = "^0.10"
 hex = "^0.4"
 tempfile = "^3.3.0"
+mime = "^0.3.13"
+
+[dependencies.tree_magic]
+version = "^0.2.3"
+features = ["cli"]
+optional = true
 
 [dependencies.pgp]
 version = "^0.7.2"
@@ -25,3 +31,5 @@ optional = true
 [features]
 pgpauth = ["pgp", "base64"]
 dev = []
+magic = ["tree_magic"]
+meta = []
