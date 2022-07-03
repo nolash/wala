@@ -20,6 +20,8 @@ use crate::auth::AuthResult;
 use tiny_http::Request;
 use tempfile::NamedTempFile;
 
+use mime::Mime;
+
 use log::{debug, info, error};
 
 #[derive(Debug, PartialEq)]
@@ -37,6 +39,7 @@ pub struct RequestResult {
     pub typ: RequestResultType,
     pub v: Option<String>,
     pub f: Option<File>,
+    pub m: Option<Mime>,
 }
 
 impl fmt::Display for RequestResult {
@@ -130,6 +133,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                             typ: RequestResultType::ReadError,
                             v: None,
                             f: None,
+                            m: None,
                         };
                         return Err(err);
                     },
@@ -142,6 +146,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                         typ: RequestResultType::ReadError,
                         v: None,
                         f: None,
+                        m: None,
                     };
                     return Err(err);
                 }
@@ -157,6 +162,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                 typ: RequestResultType::WriteError,
                 v: None,
                 f: None,
+                m: None,
             };
             return Err(err);
         }

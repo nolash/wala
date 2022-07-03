@@ -5,8 +5,10 @@ use tiny_http::{
     Response,
     StatusCode,
     Header,
+    HeaderField,
     Method,
 };
+use ascii::AsciiString;
 use mime::Mime;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
@@ -104,6 +106,16 @@ fn exec_response(req: Request, r: RequestResult) {
             match r.f {
                 Some(v) => {
                     let mut res = Response::from_file(v);
+                    match r.m {
+                        Some(v) => {
+                            let h = Header{
+                                field: HeaderField::from_str("Content-Type").unwrap(),
+                                value: AsciiString::from_ascii(v.as_ref()).unwrap(),
+                            };
+                            res.add_header(h);
+                        }, 
+                        _ => {},
+                    }
                     res = res.with_status_code(res_status);
                     req.respond(res);
                     return;
@@ -316,6 +328,9 @@ fn main() {
                 let digest_hex = result.v.clone().unwrap();
                 let digest = hex::decode(&digest_hex).unwrap();
                 process_meta(&req, &path, digest);
+            },
+            RequestResultType::Found => {
+
             },
             _ => {},
         }

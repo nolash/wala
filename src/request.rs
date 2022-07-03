@@ -19,6 +19,8 @@ use crate::auth::{
 };
 use std::io::Read;
 
+use crate::meta::get_type as get_meta_type;
+
 use log::{
     debug,
     error,
@@ -32,6 +34,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     typ: RequestResultType::AuthError,
                     v: None,
                     f: None,
+                    m: None,
                 };
             }
             if auth_result.active() {
@@ -46,6 +49,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             typ: RequestResultType::Changed,
                             v: Some(digest_hex),
                             f: None,
+                            m: None,
                         };
                     },
                     Err(e) => {
@@ -55,6 +59,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             typ: RequestResultType::RecordError,
                             v: Some(String::from(err_str)),
                             f: None,
+                            m: None,
                         };
                     },
                 };
@@ -69,6 +74,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             typ: RequestResultType::Changed,
                             v: Some(digest_hex),
                             f: None,
+                            m: None,
                         };
                     },
                     Err(e) => {
@@ -77,6 +83,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             typ: RequestResultType::RecordError,
                             v: Some(String::from(err_str)),
                             f: None,
+                            m: None,
                         };
                     },
                 };
@@ -91,6 +98,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         typ: RequestResultType::InputError,
                         v: Some(String::from(err_str)),
                         f: None,
+                        m: None,
                     };
                 },
                 Ok(v) => {
@@ -101,13 +109,21 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
             let full_path_buf = path.join(&url);
             debug!("url {} resolved to {:?}", &url, &full_path_buf);
 
-            match get_record(digest, full_path_buf.as_path()) {
+            match get_record(digest.clone(), full_path_buf.as_path()) {
                 Some(v) => {
-                    return RequestResult {
+                    let mut res = RequestResult {
                         typ: RequestResultType::Found,
                         v: None, //Some(String::new()),
                         f: Some(v),
+                        m: None,
                     };
+                    match get_meta_type(path, digest) {
+                        Some(v) => {
+                            res.m = Some(v);
+                        },
+                        _ => {},
+                    };
+                    return res;
                 },
                 None => {
                     debug!("nooonn");
@@ -115,6 +131,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         typ: RequestResultType::RecordError,
                         v: Some(String::new()),
                         f: None,
+                        m: None,
                     };
                 },
             };
@@ -125,6 +142,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
         typ: RequestResultType::InputError,
         v: Some(String::new()),
         f: None,
+        m: None,
     }
 }
 
