@@ -43,7 +43,7 @@ use request::process_method;
 mod arg;
 use arg::Settings;
 
-use log::{debug, info, error};
+use log::{info, error};
 
 use tempfile::tempfile;
 
@@ -265,7 +265,8 @@ fn main() {
     env_logger::init();
 
     let settings = Settings::from_args();
-    let base_path = Path::new(".");
+    let base_path = settings.dir.as_path();
+    info!("Using data dir: {:?}", &base_path);
 
     let ip_addr = Ipv4Addr::from_str(&settings.host).unwrap();
     let tcp_port: u16 = settings.port;
