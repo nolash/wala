@@ -40,6 +40,9 @@ use record::{
 mod request;
 use request::process_method;
 
+mod arg;
+use arg::Settings;
+
 use log::{debug, info, error};
 
 use tempfile::tempfile;
@@ -241,6 +244,7 @@ fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
         }
     }
 
+    #[cfg(feature = "meta")]
     match m {
         Some(v) => {
             match meta::register_type(path, digest, v) {
@@ -260,10 +264,11 @@ fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
 fn main() {
     env_logger::init();
 
+    let settings = Settings::from_args();
     let base_path = Path::new(".");
 
-    let ip_addr = Ipv4Addr::from_str("0.0.0.0").unwrap();
-    let tcp_port: u16 = 8001;
+    let ip_addr = Ipv4Addr::from_str(&settings.host).unwrap();
+    let tcp_port: u16 = settings.port;
     let sock_addr = SocketAddrV4::new(ip_addr, tcp_port);
     let srv_cfg = ServerConfig{
         addr: sock_addr,

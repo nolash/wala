@@ -19,6 +19,7 @@ use crate::auth::{
 };
 use std::io::Read;
 
+#[cfg(feature = "meta")]
 use crate::meta::get_type as get_meta_type;
 
 use log::{
@@ -117,6 +118,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         f: Some(v),
                         m: None,
                     };
+                    #[cfg(feature = "meta")]
                     match get_meta_type(path, digest) {
                         Some(v) => {
                             res.m = Some(v);
