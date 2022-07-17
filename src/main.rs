@@ -1,6 +1,5 @@
 #![crate_name = "wala"]
 
-
 use tiny_http::{
     Server,
     ServerConfig,

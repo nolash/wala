@@ -5,10 +5,9 @@
 //!
 //! If using bundle, the encoded data must be from the binary content, e.g. the output value of:
 //! 
-//! ```
+//! ``` ignore,
 //! gpg -b <file>
 //! ```
-//!
 use std::io::Read;
 use crate::auth::{
     AuthSpec,

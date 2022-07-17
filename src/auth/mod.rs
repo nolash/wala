@@ -12,7 +12,7 @@
 //! to determine the identity for which a client wishes to generate a mutable reference. The header
 //! uses the following format:
 //! 
-//! ```
+//! ``` ignore,
 //! Authorization: PUBSIG <scheme>:<identity>:<signature>
 //! ```
 //!
@@ -30,17 +30,17 @@
 //!
 //! For example, given the request:
 //!
-//! ```
+//! ``` ignore, 
 //! PUT /xyzzy HTTP/1.1
 //! Authorization: PUBSIG foo:123:456
 //! Content-Length: 3
 //!
-//! bar 
+//! bar
 //! ```
 //! 
 //! If we pretend that `456` is a valid signature for the `123` under the fictional `foo`
-//! authentication scheme, then the mutable reference generated will be `SHA256("xyzzy" | "123")`
-//! which is `266e6c9060785c64b652cb5aea3a99f0ef019366372ced42ea9db25877288eed`.
+//! authentication scheme, then the mutable reference generated will be `SHA256(SHA256("xyzzy") | "123")`
+//! which is `925b268b49dbd2455742082134c72291b5afb2b332c8dcb6d60f06eb8e26b350`
 //!
 //! The immutable reference (generated from the content body "bar") will simultaneously be stored,
 //! under `SHA256("bar")`, which is `fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9`.
@@ -48,8 +48,8 @@
 //! Consequtively, for a `wala` server running on `localhost:8000`, the content can be retrieved using
 //! both of the following `URLs`:
 //!
-//! ```
-//! http://localhost:8000/266e6c9060785c64b652cb5aea3a99f0ef019366372ced42ea9db25877288eed
+//! ``` ignore,
+//! http://localhost:8000/925b268b49dbd2455742082134c72291b5afb2b332c8dcb6d60f06eb8e26b350
 //! http://localhost:8000/fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9
 //! ```
 //! 

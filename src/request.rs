@@ -52,8 +52,8 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                 let res: RequestResult;
                 let rk = ResourceKey::from_str(url.as_str()).unwrap();
                 debug!("mutable put, authenticated as {:?} using mutable key {} -> {}", auth_result, &url, &rk);
-                let ptr = rk.pointer_for(&auth_result);
-                match put_mutable(ptr, path, f, expected_size) {
+                //let ptr = rk.pointer_for(&auth_result);
+                match put_mutable(path, f, expected_size, &rk, &auth_result) {
                     Ok(v) => {
                         let digest_hex = hex::encode(v.digest);
                         res = RequestResult{

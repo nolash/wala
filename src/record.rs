@@ -207,11 +207,20 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
 
 /// Store an immutable record on file with a mutable reference.
 ///
+/// This method will fail if the provided [auth::AuthResult](crate::auth::AuthResult) is not a
+/// successful authentcation.
+///
 /// # Arguments
 ///
-/// TODO: use resourcekey instead of pointer here
-pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
+/// * `path` - Absolute path to storage directory.
+/// * `f` - Reader providing the contents of the file.
+/// * `expected_size` - Size hint of content.
+/// * `key` - Mutable reference generator.
+/// * `auth` - Authentication result containing the client identity.
+pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &ResourceKey, auth: &AuthResult) -> Result<Record, RequestResult> {
+    let pointer = key.pointer_for(auth);
     let mutable_ref = hex::encode(&pointer);
+    debug!("generated mutable ref {}", &mutable_ref);
     let link_path_buf = path.join(&mutable_ref);
     
     let record = put_immutable(path, f, expected_size);
@@ -266,6 +275,7 @@ mod tests {
     use std::fs::read;
     use tempfile::tempdir;
     use hex;
+    use std::str::FromStr;
 
     use env_logger;
     use log::{debug, info, error};
@@ -306,10 +316,14 @@ mod tests {
 
         let d = tempdir().unwrap();
         let b = b"foo";
-        let ptr = b"foobar";
-        put_mutable(ptr.to_vec(), d.path().clone(), &b[..], 3);
+        let k = ResourceKey::from_str("baz").unwrap();
+        let auth_result = AuthResult{
+            identity: Vec::from("bar"),
+            error: false,
+        };
+        put_mutable(d.path().clone(), &b[..], 3, &k, &auth_result);
 
-        let foobar_hex = hex::encode(ptr);
+        let foobar_hex = "561061c1c6b4fec065f5761e12f072b9591cf3ac55c70fe6fcbb39b0c16c6e20";
         let mutable_path_buf = d.path().join(foobar_hex);
         let mutable_path = mutable_path_buf.as_path();
         debug!(">>>>> checking mutable path {:?}", mutable_path);

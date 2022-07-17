@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_mock_auth_check() {
-        let mut auth_spec = AuthSpec::from_str("foo:bar:baz").unwrap();
+        let mut auth_spec = AuthSpec::from_str("PUBSIG foo:bar:baz").unwrap();
         match auth_check(&auth_spec, empty(), 0) {
             Ok(v) => {
                 panic!("expected invalid auth");
@@ -53,7 +53,7 @@ mod tests {
             },
         }
 
-        auth_spec = AuthSpec::from_str("mock:bar:baz").unwrap();
+        auth_spec = AuthSpec::from_str("PUBSIG mock:bar:baz").unwrap();
         match auth_check(&auth_spec, empty(), 0) {
             Ok(v) => {
                 panic!("expected invalid auth");
@@ -62,7 +62,7 @@ mod tests {
             },
         }
 
-        auth_spec = AuthSpec::from_str("mock:bar:bar").unwrap();
+        auth_spec = AuthSpec::from_str("PUBSIG mock:bar:bar").unwrap();
         match auth_check(&auth_spec, empty(), 0) {
             Ok(v) => {
             },
