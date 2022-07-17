@@ -1,3 +1,14 @@
+//! This module provides authentication using PGP signatures.
+//!
+//! The public key and signature may be provided both as literal values from the individual PGP packets (i.e. raw public key and signature),
+//! or as the conventional packet bundle.
+//!
+//! If using bundle, the encoded data must be from the binary content, e.g. the output value of:
+//! 
+//! ```
+//! gpg -b <file>
+//! ```
+//!
 use std::io::Read;
 use crate::auth::{
     AuthSpec,
@@ -102,6 +113,16 @@ fn check_sig_bundle(public_key: &PublicKey, signature_data: Vec<u8>, mut message
     false
 }
 
+/// Verifies the given [auth::AuthSpec](crate::auth::AuthSpec) structure against the `pgp` scheme.
+///
+/// The `key` and `signature` fields of the [auth::AuthSpec](crate::auth::AuthSpec) **MUST** be
+/// base64 encoded.
+///
+/// # Arguments
+///
+/// * `auth` - Authentication data submitted by client.
+/// * `data` - Content body submitted by client, to match signature against.
+/// * `data_length` - Length of content body.
 pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Result<AuthResult, AuthError> {
     if auth.method != "pgp" {
         return Err(AuthError{});

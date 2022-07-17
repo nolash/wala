@@ -25,20 +25,33 @@ use mime::Mime;
 use log::{debug, info, error};
 
 #[derive(Debug, PartialEq)]
+/// Status codes to represent the result of a request.
 pub enum RequestResultType {
+    /// Record has been found.
     Found,
+    /// Record has been updated or created.
     Changed,
+    /// Cannot find and/or read record.
     ReadError,
+    /// Cannot write immutable record to storage.
     WriteError,
+    /// Authentication cannot be verified (signature mismatch).
     AuthError,
+    /// Invalid request from client.
     InputError,
+    /// Cannot store mutable record.
     RecordError,
 }
 
+/// Interface to interpret and read the result of a request.
 pub struct RequestResult {
+    /// Result code of the request.
     pub typ: RequestResultType,
+    /// Contains the result body (reference string) of a PUT request.
     pub v: Option<String>,
+    /// Contains the result body (as a reader) of a GET request.
     pub f: Option<File>,
+    /// Contains the MIME type of the content of a GET response (if build with the `meta` feature).
     pub m: Option<Mime>,
 }
 
@@ -68,11 +81,15 @@ impl Error for RequestResult {
     }
 }
 
+/// Represents a single record on the server.
 pub struct Record {
+    /// Digest of content.
     pub digest: Vec<u8>,
+    /// Server side path to content.
     pub path: PathBuf,
 }
 
+/// Identifier part of the for mutable content reference.
 pub struct ResourceKey { 
     v: Vec<u8>,
 }
@@ -97,6 +114,8 @@ impl fmt::Display for ResourceKey {
 }
 
 impl ResourceKey {
+    /// Create a reference for the identifier using the verified identity from client
+    /// authentication.
     pub fn pointer_for(&self, subject: &AuthResult) -> Vec<u8> {
         let mut h = Sha256::new();
         debug!("update {:?} {:?}", hex::encode(&self.v), hex::encode(&subject.identity));
@@ -107,6 +126,13 @@ impl ResourceKey {
 }
 
 
+/// Store an immutable record on file.
+///
+/// # Arguments
+///
+/// * `path` - Absolute path to storage directory.
+/// * `f` - Reader providing the contents of the file.
+/// * `expected_size` - Size hint of content.
 pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
     let z: Vec<u8>;
     let hash: String;
@@ -179,6 +205,11 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
     Ok(r)
 }
 
+/// Store an immutable record on file with a mutable reference.
+///
+/// # Arguments
+///
+/// TODO: use resourcekey instead of pointer here
 pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
     let mutable_ref = hex::encode(&pointer);
     let link_path_buf = path.join(&mutable_ref);
@@ -199,7 +230,14 @@ pub fn put_mutable(pointer: Vec<u8>, path: &Path, mut f: impl Read, expected_siz
     }
 }
 
-pub fn get(pointer: Vec<u8>, path: &Path) -> Option<File> { //{ impl Read> {
+
+/// Retrieve the content for a single record.
+///
+/// # Arguments
+///
+/// * `pointer` - A reference to the pointer.
+/// * `path` - Absolute path to storage directory.
+pub fn get(pointer: Vec<u8>, path: &Path) -> Option<File> {
     let path_canon = match path.canonicalize() {
         Ok(v) => {
             v

@@ -1,32 +1,5 @@
 #![crate_name = "wala"]
 
-//! wala is a content-adressed HTTP server.
-//! When content is uploaded, the URL to the content is automatcally generated from the contents of the request body. The URL will always be the same for the same content.
-//! These will be referred to as _immutable references_.
-//! 
-//! The content of the URL is the SHA256 hash of the content, in hex, lowercase, without a 0x
-//! prefix.
-//!
-//! The wala daemon will listen to all ip addresses on port 8000 by default, aswell as store and
-//! serve uploaded files from the current directory. This behavior can be modified by the argument
-//! options. See `cargo run -- --help` for details.
-//!
-//! Content is stored by making `PUT` requests to the server. With a server running on
-//! `localhost:8000`a `PUT` with the content body `foo` can in turn be retrieved at:
-//!
-//! ```
-//! http://localhost:8000/2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae 
-//! ``` 
-//! If built with the `meta` feature, the content type specified in the `PUT` will be stored and used
-//! when the file is retrieved. `wala` will _not_ double-check the content type against the actual
-//! content.
-//!
-//! wala also provides a way to generate URL aliases to content based on cryptographic identities.
-//! These will be referred to as _mutable references_.
-//! This is accomplished using a custom `PUBSIG` scheme for the `Authorization` header, specifying
-//! the cryptographic engine to use, the public key and the signature of the content. See the
-//! [wala::auth](crate::auth) module for more details. 
-//!
 
 use tiny_http::{
     Server,
@@ -55,20 +28,17 @@ use std::io::{
 
 use env_logger;
 
-mod auth;
-use auth::{
+use wala::auth::{
     AuthSpec,
     AuthResult,
 };
 
-mod record;
-use record::{
+use wala::record::{
     RequestResult,
     RequestResultType,
 };
 
-mod request;
-use request::process_method;
+use wala::request::process_method;
 
 mod arg;
 use arg::Settings;
@@ -77,15 +47,12 @@ use log::{info, error};
 
 use tempfile::tempfile;
 
-
 #[cfg(feature = "dev")]
-use crate::auth::mock::auth_check as mock_auth_check;
+use wala::auth::mock::auth_check as mock_auth_check;
 
 #[cfg(feature = "pgpauth")]
-use crate::auth::pgp::auth_check as pgp_auth_check;
+use wala::auth::pgp::auth_check as pgp_auth_check;
 
-#[cfg(feature = "meta")]
-mod meta;
 
 #[derive(Debug)]
 pub struct NoAuthError;
@@ -277,7 +244,7 @@ fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
     #[cfg(feature = "meta")]
     match m {
         Some(v) => {
-            match meta::register_type(path, digest, v) {
+            match wala::meta::register_type(path, digest, v) {
                 Err(e) => {
                     error!("could not register content type: {}", &e);
                 },

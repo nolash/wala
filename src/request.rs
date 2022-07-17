@@ -27,6 +27,16 @@ use log::{
     error,
 };
 
+/// Handle client input by method type.
+///
+/// # Arguments
+///
+/// * `method` - The HTTP method of the client request.
+/// * `url` - The local part of the URL of the client request.
+/// * `f` - Reader providing the content body of a client PUT request.
+/// * `expected_size` - Size hint for content body.
+/// * `path` - Absolute path to storage directory.
+/// * `auth_result` -  Result of authentication (if any) the client has provided with the request.
 pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
     match method {
         Method::Put => {

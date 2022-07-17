@@ -1,3 +1,8 @@
+//! The `mock` auth module is provided to facilitate testing.
+//!
+//! If active, it will be executed for the `mock` authentication scheme.
+//!
+//! Under the `mock` scheme, a valid signature is simply the same value as the identity key.
 use std::io::{
     Read,
 };
@@ -8,6 +13,13 @@ use crate::auth::{
 };
 
 
+/// Verifies the given [auth::AuthSpec](crate::auth::AuthSpec) structure against the `mock` scheme.
+///
+/// # Arguments
+///
+/// * `auth` - Authentication data submitted by client.
+/// * `data` - Content body submitted by client, to match signature against.
+/// * `data_length` - Length of content body
 pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Result<AuthResult, AuthError> {
     if auth.method != "mock" {
         return Err(AuthError{});
