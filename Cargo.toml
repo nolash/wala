@@ -3,6 +3,12 @@ name = "wala"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.60"
+license = "GPL-3.0-or-later"
+documentation = "https://defalsify.org/doc/crates/wala"
+description = "Content-adressed HTTP file server"
+repository = "https://git.defalsify.org/wala"
+# from https://crates.io/category_slugs
+categories = ["web-programming::http-server"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
