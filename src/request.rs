@@ -20,7 +20,10 @@ use crate::auth::{
 use std::io::Read;
 
 #[cfg(feature = "meta")]
-use crate::meta::get_type as get_meta_type;
+use crate::meta::{
+    get_type as get_meta_type,
+    get_filename as get_meta_filename,
+};
 
 use log::{
     debug,
@@ -46,6 +49,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     v: None,
                     f: None,
                     m: None,
+                    n: None,
                 };
             }
             if auth_result.active() {
@@ -61,6 +65,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             v: Some(digest_hex),
                             f: None,
                             m: None,
+                            n: None,
                         };
                     },
                     Err(e) => {
@@ -71,6 +76,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             v: Some(String::from(err_str)),
                             f: None,
                             m: None,
+                            n: None,
                         };
                     },
                 };
@@ -86,6 +92,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             v: Some(digest_hex),
                             f: None,
                             m: None,
+                            n: None,
                         };
                     },
                     Err(e) => {
@@ -95,6 +102,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             v: Some(String::from(err_str)),
                             f: None,
                             m: None,
+                            n: None,
                         };
                     },
                 };
@@ -110,6 +118,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         v: Some(String::from(err_str)),
                         f: None,
                         m: None,
+                        n: None,
                     };
                 },
                 Ok(v) => {
@@ -127,14 +136,25 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         v: None, //Some(String::new()),
                         f: Some(v),
                         m: None,
+                        n: None,
                     };
+//                    match get_meta_type(path, &digest) {
+//                        Some(v) => {
+//                            res.m = Some(v);
+//                        },
+//                        _ => {},
+//                    };
+//                    match get_meta_filename(path, &digest) {
+//                        Some(v) => {
+//                            res.n = Some(v);
+//                        },
+//                        _ => {},
+//                    };
                     #[cfg(feature = "meta")]
-                    match get_meta_type(path, digest) {
-                        Some(v) => {
-                            res.m = Some(v);
-                        },
-                        _ => {},
-                    };
+                    {
+                        res.m = get_meta_type(path, &digest);
+                        res.n = get_meta_filename(path, &digest);
+                    }
                     return res;
                 },
                 None => {
@@ -144,6 +164,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         v: Some(String::new()),
                         f: None,
                         m: None,
+                        n: None,
                     };
                 },
             };
@@ -155,6 +176,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
         v: Some(String::new()),
         f: None,
         m: None,
+        n: None,
     }
 }
 

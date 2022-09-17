@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.60"
 license = "GPL-3.0-or-later"
-documentation = "https://defalsify.org/doc/crates/wala"
+documentation = "https://defalsify.org/doc/crates/wala/0.1.0/wala"
 description = "Content-adressed HTTP file server"
 repository = "https://git.defalsify.org/wala"
 # from https://crates.io/category_slugs

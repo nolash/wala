@@ -4,13 +4,9 @@ use tiny_http::{
     Server,
     ServerConfig,
     Request,
-    Response,
-    StatusCode,
     Header,
-    HeaderField,
     Method,
 };
-use ascii::AsciiString;
 use mime::Mime;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
@@ -38,6 +34,7 @@ use wala::record::{
 };
 
 use wala::request::process_method;
+use wala::response::exec_response;
 
 mod arg;
 use arg::Settings;
@@ -67,68 +64,6 @@ impl fmt::Display for NoAuthError {
         fmt.write_str(self.description())
     }
 }
-
-
-fn exec_response(req: Request, r: RequestResult) {
-    let res_status: StatusCode;
-    match r.typ {
-        RequestResultType::Found => {
-            res_status = StatusCode(200);
-        },
-        RequestResultType::Changed => {
-            res_status = StatusCode(200);
-        },
-        RequestResultType::WriteError => {
-            res_status = StatusCode(500);
-        },
-        RequestResultType::AuthError => {
-            res_status = StatusCode(403);
-        },
-        RequestResultType::InputError => {
-            res_status = StatusCode(400);
-        },
-        RequestResultType::RecordError => {
-            res_status = StatusCode(404);
-        },
-        _ => {
-            res_status = StatusCode(500);
-        },
-    }
-    match r.v {
-        Some(v) => {
-            let mut res = Response::from_string(v);
-            res = res.with_status_code(res_status);
-            req.respond(res);
-            return;
-        },
-        None => {
-            match r.f {
-                Some(v) => {
-                    let mut res = Response::from_file(v);
-                    match r.m {
-                        Some(v) => {
-                            let h = Header{
-                                field: HeaderField::from_str("Content-Type").unwrap(),
-                                value: AsciiString::from_ascii(v.as_ref()).unwrap(),
-                            };
-                            res.add_header(h);
-                        }, 
-                        _ => {},
-                    }
-                    res = res.with_status_code(res_status);
-                    req.respond(res);
-                    return;
-                },
-                None => {
-                    let res = Response::empty(res_status);
-                    req.respond(res);
-                    return;
-                },
-            }
-        }
-    }
-}
-
 
 fn exec_auth(auth_spec: AuthSpec, data: &File, data_length: usize) -> Option<AuthResult> {
     #[cfg(feature = "dev")]
@@ -223,6 +158,7 @@ fn process_request(req: &mut Request, f: &File) -> AuthResult {
 fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
     let headers = req.headers();
     let mut m: Option<mime::Mime> = None;
+    let mut n: Option<String> = None;
    
     for h in headers {
         let k = &h.field;
@@ -237,13 +173,31 @@ fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
                     Some(v)
                 },
             };
+        } else if k.equiv("X-Filename") {
+            let v = &h.value;
+            let p = Path::new(v.as_str());
+            let fp = p.to_str().unwrap();
+            n = Some(String::from(fp));
         }
     }
 
     #[cfg(feature = "meta")]
     match m {
         Some(v) => {
-            match wala::meta::register_type(path, digest, v) {
+            match wala::meta::register_type(path, &digest, v) {
+                Err(e) => {
+                    error!("could not register content type: {}", &e);
+                },
+                _ => {},
+            };
+        },
+        _ => {},
+    };
+
+    #[cfg(feature = "meta")]
+    match n {
+        Some(v) => {
+            match wala::meta::register_filename(path, &digest, v) {
                 Err(e) => {
                     error!("could not register content type: {}", &e);
                 },
@@ -340,3 +294,5 @@ fn main() {
         exec_response(req, result);
     }
 }
+
+

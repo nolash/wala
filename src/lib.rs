@@ -38,6 +38,9 @@ pub mod auth;
 /// Encapsulates an incoming remote request.
 pub mod request;
 
+/// Encapsulates an outgoing response to remote.
+pub mod response;
+
 /// Interfaces a single content record lookup.
 pub mod record;
 
