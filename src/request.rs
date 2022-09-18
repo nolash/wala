@@ -50,6 +50,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     f: None,
                     m: None,
                     n: None,
+                    a: None,
                 };
             }
             if auth_result.active() {
@@ -66,6 +67,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             f: None,
                             m: None,
                             n: None,
+                            a: Some(auth_result),
                         };
                     },
                     Err(e) => {
@@ -77,6 +79,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             f: None,
                             m: None,
                             n: None,
+                            a: None,
                         };
                     },
                 };
@@ -93,6 +96,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             f: None,
                             m: None,
                             n: None,
+                            a: None,
                         };
                     },
                     Err(e) => {
@@ -103,6 +107,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                             f: None,
                             m: None,
                             n: None,
+                            a: None,
                         };
                     },
                 };
@@ -119,6 +124,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         f: None,
                         m: None,
                         n: None,
+                        a: None,
                     };
                 },
                 Ok(v) => {
@@ -137,6 +143,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         f: Some(v),
                         m: None,
                         n: None,
+                        a: None,
                     };
 //                    match get_meta_type(path, &digest) {
 //                        Some(v) => {
@@ -164,6 +171,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         f: None,
                         m: None,
                         n: None,
+                        a: None,
                     };
                 },
             };
@@ -176,6 +184,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
         f: None,
         m: None,
         n: None,
+        a: None,
     }
 }
 

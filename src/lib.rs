@@ -47,3 +47,7 @@ pub mod record;
 #[cfg(feature = "meta")]
 /// Store and serve MIME metadata for content.
 pub mod meta;
+
+#[cfg(feature = "trace")]
+/// Log all successful requests to spool directory
+pub mod trace;

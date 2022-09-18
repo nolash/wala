@@ -11,7 +11,10 @@ use mime::Mime;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::path::{PathBuf, Path};
-use std::fs::File;
+use std::fs::{
+    File,
+    create_dir_all,
+};
 use std::error::Error;
 use std::fmt;
 use std::io::{
@@ -39,10 +42,13 @@ use wala::response::{
     preflight_response,   
 };
 
+#[cfg(feature = "trace")]
+use wala::trace::trace_request;
+
 mod arg;
 use arg::Settings;
 
-use log::{info, error};
+use log::{info, error, warn};
 
 use tempfile::tempfile;
 
@@ -219,6 +225,19 @@ fn main() {
 
     let settings = Settings::from_args();
     let base_path = settings.dir.as_path();
+
+    #[cfg(feature = "trace")]
+    let spool_path = base_path.join("spool");
+    let mut spool_ok = false;
+    match create_dir_all(&spool_path) {
+        Ok(v) => {
+            spool_ok = true;
+        },
+        Err(e) => {
+            warn!("spool directory could not be created: {:?}", e);
+        },
+    };
+
     info!("Using data dir: {:?}", &base_path);
 
     let ip_addr = Ipv4Addr::from_str(&settings.host).unwrap();
@@ -301,7 +320,11 @@ fn main() {
             _ => {},
         }
 
+        #[cfg(feature="trace")]
+        trace_request(&spool_path, &result);
+
         exec_response(req, result);
+
     }
 }
 

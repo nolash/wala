@@ -55,6 +55,8 @@ pub struct RequestResult {
     pub m: Option<Mime>,
     /// Contains the file name to use for download request requesting a filename.
     pub n: Option<String>,
+    /// Contains the authentication result
+    pub a: Option<AuthResult>,
 }
 
 impl fmt::Display for RequestResult {
@@ -163,6 +165,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                             f: None,
                             m: None,
                             n: None,
+                            a: None,
                         };
                         return Err(err);
                     },
@@ -177,6 +180,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                         f: None,
                         m: None,
                         n: None,
+                        a: None,
                     };
                     return Err(err);
                 }
@@ -194,6 +198,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                 f: None,
                 m: None,
                 n: None,
+                a: None,
             };
             return Err(err);
         }
