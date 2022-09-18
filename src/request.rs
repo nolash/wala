@@ -158,7 +158,6 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     return res;
                 },
                 None => {
-                    debug!("nooonn");
                     return RequestResult {
                         typ: RequestResultType::RecordError,
                         v: Some(String::new()),

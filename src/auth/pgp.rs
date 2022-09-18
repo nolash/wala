@@ -8,6 +8,8 @@
 //! ``` ignore,
 //! gpg -b <file>
 //! ```
+//!
+//! Does not work for ECC secp256k1 signature.
 use std::io::Read;
 use crate::auth::{
     AuthSpec,
@@ -136,6 +138,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
         }
     };
 
+    debug!("signature data {:?}", auth.signature);
     let sig_data = match base64::decode(&auth.signature) {
         Ok(v) => {
             v
@@ -148,6 +151,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
     
     let key = match check_key_single(&key_data) {
         Some(v) => {
+            debug!("using public key (raw) {:?}", v.key_id());
             if !check_sig_single(&v, sig_data, data, data_length) {
                 error!("invalid raw signature for {:?}", hex::encode(&v.fingerprint()));
                 return Err(AuthError{});
@@ -158,6 +162,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
         None => {
             let key = match check_key_bundle(&key_data) {
                 Some(v) => {
+                    debug!("using public key (bundle) {:?}", v.key_id());
                     if !check_sig_bundle(&v, sig_data, data, data_length) {
                         error!("invalid bundle signature for {:?}", hex::encode(&v.fingerprint()));
                         return Err(AuthError{});

@@ -34,7 +34,10 @@ use wala::record::{
 };
 
 use wala::request::process_method;
-use wala::response::exec_response;
+use wala::response::{
+    exec_response,
+    preflight_response,   
+};
 
 mod arg;
 use arg::Settings;
@@ -238,9 +241,16 @@ fn main() {
             }
         };
 
+        let method = req.method().clone();
+        match &method {
+            Method::Options => {
+                preflight_response(req);
+                continue;
+            },
+            _ => {},
+        }
 
         let url = String::from(&req.url()[1..]);
-        let method = req.method().clone();
         let expected_size = match req.body_length() {
                 Some(v) => {
                     v 

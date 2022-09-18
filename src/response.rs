@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use log::{debug};
+
 use tiny_http::{
     StatusCode,
     Request,
@@ -14,6 +16,35 @@ use crate::record::{
     RequestResultType,
 };
 
+
+pub fn origin_headers() -> Vec<Header> {
+    let mut headers: Vec<Header> = vec!();
+    headers.push(Header{
+        field: HeaderField::from_str("Access-Control-Allow-Origin").unwrap(),
+        value: AsciiString::from_ascii("*").unwrap(),
+    });
+    headers.push(Header{
+        field: HeaderField::from_str("Access-Control-Allow-Methods").unwrap(),
+        value: AsciiString::from_ascii("OPTIONS, PUT, GET").unwrap(),
+    });
+    headers.push(Header{
+        field: HeaderField::from_str("Access-Control-Allow-Headers").unwrap(),
+        value: AsciiString::from_ascii("Content-Type,Authorization,X-Filename").unwrap(),
+    });
+    headers
+}
+
+pub fn preflight_response(req: Request) {
+    let auth_origin_headers = origin_headers();
+    let res_status = StatusCode(200);
+    let mut res = Response::empty(res_status);
+    for v in auth_origin_headers.iter() {
+        res.add_header(v.clone());
+    }
+    req.respond(res);
+    debug!("served options request");
+    return;
+}
 
 pub fn exec_response(req: Request, r: RequestResult) {
     let res_status: StatusCode;
@@ -40,10 +71,16 @@ pub fn exec_response(req: Request, r: RequestResult) {
             res_status = StatusCode(500);
         },
     }
+
+    let auth_origin_headers = origin_headers();
+
     match r.v {
         Some(v) => {
             let mut res = Response::from_string(v);
             res = res.with_status_code(res_status);
+            for v in auth_origin_headers.iter() {
+                res.add_header(v.clone());
+            }
             req.respond(res);
             return;
         },
@@ -74,11 +111,17 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     }
 
                     res = res.with_status_code(res_status);
+                    for v in auth_origin_headers.iter() {
+                        res.add_header(v.clone());
+                    }
                     req.respond(res);
                     return;
                 },
                 None => {
-                    let res = Response::empty(res_status);
+                    let mut res = Response::empty(res_status);
+                    for v in auth_origin_headers.iter() {
+                        res.add_header(v.clone());
+                    }
                     req.respond(res);
                     return;
                 },
