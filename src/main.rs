@@ -226,17 +226,20 @@ fn main() {
     let settings = Settings::from_args();
     let base_path = settings.dir.as_path();
 
-    #[cfg(feature = "trace")]
     let spool_path = base_path.join("spool");
     let mut spool_ok = false;
-    match create_dir_all(&spool_path) {
-        Ok(v) => {
-            spool_ok = true;
-        },
-        Err(e) => {
-            warn!("spool directory could not be created: {:?}", e);
-        },
-    };
+
+    #[cfg(feature = "trace")]
+    {
+        match create_dir_all(&spool_path) {
+            Ok(v) => {
+                spool_ok = true;
+            },
+            Err(e) => {
+                warn!("spool directory could not be created: {:?}", e);
+            },
+        };
+    }
 
     info!("Using data dir: {:?}", &base_path);
 
