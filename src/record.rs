@@ -1,7 +1,10 @@
 use std::str::FromStr;
 use std::io;
 use std::convert::Infallible;
-use std::fs::File;
+use std::fs::{
+    File,
+    remove_file,
+};
 use std::io::{
     Write,
     Read,
@@ -236,6 +239,7 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
     let record = put_immutable(path, f, expected_size);
     match record {
         Ok(v) => {
+            remove_file(&link_path_buf);
             symlink(&v.path, &link_path_buf);
             let r = Record{
                 digest: pointer,
@@ -282,7 +286,11 @@ mod tests {
         put_immutable,
         put_mutable,
     };
-    use std::fs::read;
+    use std::fs::{
+        read,
+        File,
+    };
+    use std::io::Read;
     use tempfile::tempdir;
     use hex;
     use std::str::FromStr;
@@ -322,8 +330,6 @@ mod tests {
     
     #[test]
     fn test_mutable() {
-        env_logger::init();
-
         let d = tempdir().unwrap();
         let b = b"foo";
         let k = ResourceKey::from_str("baz").unwrap();
@@ -349,5 +355,41 @@ mod tests {
 
         let mut r = read(immutable_path).unwrap();
         assert_eq!(r, b.to_vec());
+    }
+
+    #[test]
+    fn test_mutable_overwrite() {
+        let d = tempdir().unwrap();
+        let mut b = b"foo";
+        let k = ResourceKey::from_str("baz").unwrap();
+        let mut auth_result = AuthResult{
+            identity: Vec::from("bar"),
+            error: false,
+        };
+        let result: Vec<u8> = vec!();
+        let r = put_mutable(d.path().clone(), &b[..], 3, &k, &auth_result).unwrap();
+
+        let foobar_hex = "561061c1c6b4fec065f5761e12f072b9591cf3ac55c70fe6fcbb39b0c16c6e20";
+        let mutable_path_buf = d.path().join(foobar_hex);
+        let mutable_path = mutable_path_buf.as_path();
+
+        let mut f = File::open(&mutable_path).unwrap();
+        let mut result_behind: Vec<u8> = vec!();
+        f.read_to_end(&mut result_behind);
+        let mut result_expect = "foo".as_bytes();
+        assert_eq!(result_behind, result_expect);
+
+        b = b"bar";
+        auth_result = AuthResult{
+            identity: Vec::from("bar"),
+            error: false,
+        };
+        let r = put_mutable(d.path().clone(), &b[..], 3, &k, &auth_result).unwrap();
+
+        f = File::open(&mutable_path).unwrap();
+        result_behind = vec!();
+        f.read_to_end(&mut result_behind);
+        result_expect = "bar".as_bytes();
+        assert_eq!(result_behind, result_expect);
     }
 }
