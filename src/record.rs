@@ -239,7 +239,14 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
     let record = put_immutable(path, f, expected_size);
     match record {
         Ok(v) => {
-            remove_file(&link_path_buf);
+            match remove_file(&link_path_buf) {
+                Ok(r) => {
+                    info!("unlinked mutable ref on {:?}", &e);
+                },
+                Err(e) => {
+                    debug!("clear symlink failed {:?}", &e);
+                }
+            };
             symlink(&v.path, &link_path_buf);
             let r = Record{
                 digest: pointer,
