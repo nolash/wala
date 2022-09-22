@@ -1,0 +1,6 @@
+- 0.1.0
+	* immutable PUT
+	* mutable reference PUT
+	* custom PUBSIG http scheme with pgp authentication
+	* filesystem based store with symlinks
+	* reverse lookup tracing of mutable reference auth fingerprint
