@@ -1,5 +1,8 @@
 use std::path::Path;
-use std::fs::File;
+use std::fs::{
+    File,
+    OpenOptions,
+};
 use std::io::Write;
     
 use hex;
@@ -27,14 +30,14 @@ pub fn trace_request(p: &Path, res: &RequestResult) {
     if rf.len() == 0 {
         return;
     }
-    let mut content = String::new();
+    //let mut content = String::new();
+    let mut content: Vec<u8> = vec!();
+    let mut identity = String::new();
     match &res.a {
         Some(auth) => {
             if auth.active() {
-                let identity = hex::encode(&auth.identity);
-                content.push_str(&identity);
-                //content.push('\t');
-                //content.push_str("foo");
+                content = auth.identity.clone();
+                identity = hex::encode(&content);
             } else {
                 rf = String::new();
             }
@@ -45,9 +48,28 @@ pub fn trace_request(p: &Path, res: &RequestResult) {
     if rf.len() == 0 {
         return;
     }
-    let fp = p.join(rf);
+    let fp = p.join(&rf);
     let mut f = File::create(fp).unwrap();
     f.write(content.as_ref());
+
+    // useless update because we can always resolve mutable to immutable from data dir
+//    if content.len() != 0 {
+//        let rf_content_hex = res.s.as_ref().unwrap();
+//        let rf_content = hex::decode(rf_content_hex).unwrap();
+//        //let rf_content = s.clone();
+//        let fp = p.join(&identity);
+//    
+//        let mut f = OpenOptions::new()
+//            .write(true)
+//            .append(true)
+//            .create(true)
+//            .open(fp)
+//            .unwrap();
+//
+//        let rf_bin = hex::decode(rf).unwrap();
+//        f.write(rf_bin.as_ref());
+//        f.write(rf_content.as_ref());
+//    }
 }
 
 #[cfg(test)]

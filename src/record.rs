@@ -58,8 +58,44 @@ pub struct RequestResult {
     pub m: Option<Mime>,
     /// Contains the file name to use for download request requesting a filename.
     pub n: Option<String>,
-    /// Contains the authentication result
+    /// Contains the authentication result.
     pub a: Option<AuthResult>,
+    /// Aliase content, in case of mutable reference.
+    pub s: Option<String>,
+}
+
+impl RequestResult {
+    pub fn new(typ: RequestResultType) -> RequestResult {
+        RequestResult {
+            typ: typ,
+            v: None,
+            f: None,
+            m: None,
+            n: None,
+            a: None,
+            s: None,
+        }
+    }
+
+    pub fn with_content(mut self, s: String) -> RequestResult {
+        self.v = Some(s);
+        self
+    }
+
+    pub fn with_auth(mut self, a: AuthResult) -> RequestResult {
+        self.a = Some(a);
+        self
+    }
+
+    pub fn with_file(mut self, f: File) -> RequestResult {
+        self.f = Some(f);
+        self
+    }
+
+    pub fn with_aliased(mut self, s: String) -> RequestResult {
+        self.s = Some(s);
+        self
+    }
 }
 
 impl fmt::Display for RequestResult {
@@ -94,6 +130,8 @@ pub struct Record {
     pub digest: Vec<u8>,
     /// Server side path to content.
     pub path: PathBuf,
+    /// Alias
+    pub alias: Option<Vec<u8>>,
 }
 
 /// Identifier part of the for mutable content reference.
@@ -162,14 +200,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                     },
                     Err(e) => {
                         error!("cannot read from request body: {}", e);
-                        let err = RequestResult{
-                            typ: RequestResultType::ReadError,
-                            v: None,
-                            f: None,
-                            m: None,
-                            n: None,
-                            a: None,
-                        };
+                        let err = RequestResult::new(RequestResultType::ReadError);
                         return Err(err);
                     },
                 }
@@ -177,14 +208,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
     
             if expected_size > 0 {
                 if expected_size != total_size {
-                    let err = RequestResult{
-                        typ: RequestResultType::ReadError,
-                        v: None,
-                        f: None,
-                        m: None,
-                        n: None,
-                        a: None,
-                    };
+                    let err = RequestResult::new(RequestResultType::ReadError);
                     return Err(err);
                 }
             }
@@ -195,14 +219,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
             of
         },
         Err(e) => {
-            let err = RequestResult{
-                typ: RequestResultType::WriteError,
-                v: None,
-                f: None,
-                m: None,
-                n: None,
-                a: None,
-            };
+            let err = RequestResult::new(RequestResultType::WriteError);
             return Err(err);
         }
     };
@@ -214,6 +231,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
     let r = Record{
         digest: z,
         path: final_path_buf,
+        alias: None,
     };
     Ok(r)
 }
@@ -241,7 +259,7 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
         Ok(v) => {
             match remove_file(&link_path_buf) {
                 Ok(r) => {
-                    info!("unlinked mutable ref on {:?}", &e);
+                    info!("unlinked mutable ref on {:?}", &link_path_buf);
                 },
                 Err(e) => {
                     debug!("clear symlink failed {:?}", &e);
@@ -251,6 +269,7 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
             let r = Record{
                 digest: pointer,
                 path: link_path_buf.clone(),
+                alias: Some(v.digest),
             };
             return Ok(r);
         },

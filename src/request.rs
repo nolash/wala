@@ -44,71 +44,43 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
     match method {
         Method::Put => {
             if !auth_result.valid() {
-                return RequestResult{
-                    typ: RequestResultType::AuthError,
-                    v: None,
-                    f: None,
-                    m: None,
-                    n: None,
-                    a: None,
-                };
+                return RequestResult::new(RequestResultType::AuthError);
             }
             if auth_result.active() {
-                let res: RequestResult;
+                let mut res: RequestResult;
                 let rk = ResourceKey::from_str(url.as_str()).unwrap();
                 debug!("mutable put, authenticated as {:?} using mutable key {} -> {}", auth_result, &url, &rk);
                 //let ptr = rk.pointer_for(&auth_result);
                 match put_mutable(path, f, expected_size, &rk, &auth_result) {
                     Ok(v) => {
                         let digest_hex = hex::encode(v.digest);
-                        res = RequestResult{
-                            typ: RequestResultType::Changed,
-                            v: Some(digest_hex),
-                            f: None,
-                            m: None,
-                            n: None,
-                            a: Some(auth_result),
-                        };
+                        let alias_hex = hex::encode(v.alias.unwrap());
+                        res = RequestResult::new(RequestResultType::Changed);
+                        res = res.with_content(digest_hex);
+                        res = res.with_auth(auth_result);
+                        res = res.with_aliased(alias_hex);
                     },
                     Err(e) => {
                         let err_str = format!("{:?}", e);
                         error!("{}", err_str);
-                        res = RequestResult {
-                            typ: RequestResultType::RecordError,
-                            v: Some(String::from(err_str)),
-                            f: None,
-                            m: None,
-                            n: None,
-                            a: None,
-                        };
+                        res = RequestResult::new(RequestResultType::RecordError);
+                        res = res.with_content(String::from(err_str));
                     },
                 };
                 return res;
             } else {
                 debug!("immutable put");
-                let res: RequestResult;
+                let mut res: RequestResult;
                 match put_immutable(path, f, expected_size) {
                     Ok(v) => {
                         let digest_hex = hex::encode(v.digest);
-                        res = RequestResult{
-                            typ: RequestResultType::Changed,
-                            v: Some(digest_hex),
-                            f: None,
-                            m: None,
-                            n: None,
-                            a: None,
-                        };
+                        res = RequestResult::new(RequestResultType::Changed);
+                        res = res.with_content(digest_hex);
                     },
                     Err(e) => {
                         let err_str = format!("{}", e);
-                        res = RequestResult {
-                            typ: RequestResultType::RecordError,
-                            v: Some(String::from(err_str)),
-                            f: None,
-                            m: None,
-                            n: None,
-                            a: None,
-                        };
+                        res = RequestResult::new(RequestResultType::RecordError);
+                        res = res.with_content(String::from(err_str));
                     },
                 };
                 return res;
@@ -118,14 +90,9 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
             let digest = match hex::decode(&url) {
                 Err(e) => {
                     let err_str = format!("{}", e);
-                    return RequestResult {
-                        typ: RequestResultType::InputError,
-                        v: Some(String::from(err_str)),
-                        f: None,
-                        m: None,
-                        n: None,
-                        a: None,
-                    };
+                    let mut res = RequestResult::new(RequestResultType::InputError);
+                    res = res.with_content(String::from(err_str));
+                    return res;
                 },
                 Ok(v) => {
                     v
@@ -137,26 +104,9 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
 
             match get_record(digest.clone(), full_path_buf.as_path()) {
                 Some(v) => {
-                    let mut res = RequestResult {
-                        typ: RequestResultType::Found,
-                        v: None, //Some(String::new()),
-                        f: Some(v),
-                        m: None,
-                        n: None,
-                        a: None,
-                    };
-//                    match get_meta_type(path, &digest) {
-//                        Some(v) => {
-//                            res.m = Some(v);
-//                        },
-//                        _ => {},
-//                    };
-//                    match get_meta_filename(path, &digest) {
-//                        Some(v) => {
-//                            res.n = Some(v);
-//                        },
-//                        _ => {},
-//                    };
+                    let mut res = RequestResult::new(RequestResultType::Found);
+                    res = res.with_file(v);
+
                     #[cfg(feature = "meta")]
                     {
                         res.m = get_meta_type(path, &digest);
@@ -165,27 +115,13 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                     return res;
                 },
                 None => {
-                    return RequestResult {
-                        typ: RequestResultType::RecordError,
-                        v: Some(String::new()),
-                        f: None,
-                        m: None,
-                        n: None,
-                        a: None,
-                    };
+                    return RequestResult::new(RequestResultType::RecordError);
                 },
             };
         },
         _ => {},
     };
-    RequestResult {
-        typ: RequestResultType::InputError,
-        v: Some(String::new()),
-        f: None,
-        m: None,
-        n: None,
-        a: None,
-    }
+    RequestResult::new(RequestResultType::InputError)
 }
 
 #[cfg(test)]
