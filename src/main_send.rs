@@ -13,6 +13,7 @@ use sequoia_openpgp::cert::prelude::CertParser;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::parse::PacketParser;
 use sequoia_openpgp::policy::StandardPolicy;
+use sequoia_openpgp::packet::key::SecretKeyMaterial;
 
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
@@ -105,7 +106,8 @@ fn main() {
         None => {},
     }
 
-    let mut match_fp: Vec<u8> = Vec::new();
+    //let mut match_fp: Vec<u8> = Vec::new();
+    let mut sk: Option<SecretKeyMaterial> = None;
     if rk.v.len() > 0 {
         let p = StandardPolicy::new();
         let fp_stem = home_dir().unwrap();
@@ -125,7 +127,7 @@ fn main() {
                         .map(|kk| kk.key()) {
                             debug!("check key {} {}", k.fingerprint(), hex::encode(&auth_data.identity));
                             if k.fingerprint().as_bytes() == auth_data.identity {
-                                match_fp = auth_data.identity.clone();
+                                sk = Some(k);
                             }
                         }
                    
@@ -136,8 +138,6 @@ fn main() {
             };
         }
     }
-
-    info!("signing with {}", hex::encode(&match_fp));
 
     let ua = AgentBuilder::new().build();
     let r = ua.put(url.as_str())
