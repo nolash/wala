@@ -96,14 +96,8 @@ mod tests {
         let d = tempdir().unwrap();
         let p = d.path();
         let url = String::from("deadbeef");
-        let r = RequestResult{
-            typ: RequestResultType::Changed,
-            v: Some(url),
-            f: None,
-            m: None,
-            n: None,
-            a: None,
-        };
+        let mut r = RequestResult::new(RequestResultType::Changed);
+        r = r.with_content(url);
         trace_request(&p, &r);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp).unwrap();
@@ -116,14 +110,8 @@ mod tests {
         let d = tempdir().unwrap();
         let p = d.path();
         let url = String::from("deadbeef");
-        let r = RequestResult{
-            typ: RequestResultType::Found,
-            v: Some(url),
-            f: None,
-            m: None,
-            n: None,
-            a: None,
-        };
+        let mut r = RequestResult::new(RequestResultType::Found);
+        r = r.with_content(url);
         trace_request(&p, &r);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp);
@@ -145,14 +133,9 @@ mod tests {
             identity: vec!(),
             error: false,
         };
-        let r = RequestResult{
-            typ: RequestResultType::Changed,
-            v: Some(url),
-            f: None,
-            m: None,
-            n: None,
-            a: Some(a),
-        };
+        let mut r = RequestResult::new(RequestResultType::Changed);
+        r = r.with_content(url);
+        r = r.with_auth(a);
         trace_request(&p, &r);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp);
@@ -175,16 +158,11 @@ mod tests {
             identity: id_b.to_vec(),
             error: false,
         };
-        let r = RequestResult{
-            typ: RequestResultType::Changed,
-            v: Some(url),
-            f: None,
-            m: None,
-            n: None,
-            a: Some(a),
-        };
+        let mut r = RequestResult::new(RequestResultType::Changed);
+        r = r.with_content(url);
+        r = r.with_auth(a);
         trace_request(&p, &r);
-        let fp = p.join(&r.v.unwrap());
+        let fp = p.join(r.v.unwrap());
         let f = File::open(fp).unwrap();
         let meta = f.metadata().unwrap();
         let id_l = (id_b.len() * 2) as u64;

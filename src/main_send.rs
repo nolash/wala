@@ -1,4 +1,6 @@
-use log::{debug};
+use std::env::home_dir;
+
+use log::{info, debug};
 use ureq::{Agent, AgentBuilder};
 use env_logger;
 use clap::{
@@ -6,6 +8,11 @@ use clap::{
     Arg,
 };
 use url::Url;
+
+use sequoia_openpgp::cert::prelude::CertParser;
+use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::parse::PacketParser;
+use sequoia_openpgp::policy::StandardPolicy;
 
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
@@ -67,6 +74,15 @@ fn main() {
     let url_src = args.value_of("URL").unwrap();
     let mut url = Url::parse(url_src).unwrap();
 
+    let mut have_auth = false;
+    let mut rk = ResourceKey {
+        v: Vec::new(),
+    };
+    let mut auth_data = AuthResult {
+        identity: Vec::new(),
+        error: false,
+    };
+
     match args.value_of("key") {
         Some(mut v) => {
             debug!("have key {:?}", v);
@@ -80,23 +96,48 @@ fn main() {
                 v = nv.as_ref();
             }
             debug!("hex key input {:?}", &v);
-            let auth_data = AuthResult {
-                identity: v.as_bytes().to_vec(),
-                error: false,
-            };
-
-            let rk = ResourceKey {
-                v: d.clone(),
-            };
+            auth_data.identity = hex::decode(&v).unwrap();
+            rk.v = d.clone();
             let url_postfix = rk.pointer_for(&auth_data);
-            //let url_postfix_str = String::from_utf8(url_postfix).unwrap();
             let url_postfix_hex = hex::encode(url_postfix);
             url = url.join(&url_postfix_hex).unwrap();
         },
         None => {},
     }
 
+    let mut match_fp: Vec<u8> = Vec::new();
+    if rk.v.len() > 0 {
+        let p = StandardPolicy::new();
+        let fp_stem = home_dir().unwrap();
+        let fp = fp_stem.join(".gnupg/secring.gpg");
+        let pp = PacketParser::from_file(fp).unwrap();
 
+        // find a way to stop iter when key found
+        for v in CertParser::from(pp) {
+            match v {
+                Ok(r) => {
+                    for k in r.keys()
+                        .with_policy(&p, None)
+                        .alive()
+                        .revoked(false)
+                        .for_signing()
+                        .secret()
+                        .map(|kk| kk.key()) {
+                            debug!("check key {} {}", k.fingerprint(), hex::encode(&auth_data.identity));
+                            if k.fingerprint().as_bytes() == auth_data.identity {
+                                match_fp = auth_data.identity.clone();
+                            }
+                        }
+                   
+                },
+                Err(e) => {
+                    panic!("keyparse fail: {:?}", e);
+                }
+            };
+        }
+    }
+
+    info!("signing with {}", hex::encode(&match_fp));
 
     let ua = AgentBuilder::new().build();
     let r = ua.put(url.as_str())
