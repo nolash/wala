@@ -136,7 +136,7 @@ pub struct Record {
 
 /// Identifier part of the for mutable content reference.
 pub struct ResourceKey { 
-    v: Vec<u8>,
+    pub v: Vec<u8>,
 }
 
 impl FromStr for ResourceKey {

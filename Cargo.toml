@@ -10,6 +10,11 @@ repository = "https://git.defalsify.org/wala"
 # from https://crates.io/category_slugs
 categories = ["web-programming::http-server"]
 
+[[bin]]
+name = 'wala_send'
+path = 'src/main_send.rs'
+required_features = 'client'
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -22,6 +27,7 @@ tempfile = "^3.3.0"
 mime = "^0.3.13"
 ascii = "^1.0.0"
 clap = "^2.34.0"
+url = "^2.2.2"
 
 [dependencies.tree_magic]
 version = "^0.2.3"
@@ -36,6 +42,9 @@ optional = true
 version = "^0.13.0"
 optional = true
 
+[dependencies.ureq]
+version = "^2.5.0" 
+optional = true
 
 [features]
 pgpauth = ["pgp", "base64"]
@@ -43,3 +52,4 @@ dev = []
 magic = ["tree_magic"]
 meta = []
 trace = []
+client = ["ureq"]
