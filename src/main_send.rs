@@ -1,4 +1,7 @@
 use std::env::home_dir;
+use std::io::stdout;
+use std::io::copy;
+use std::io::Write;
 
 use log::{info, debug};
 use ureq::{Agent, AgentBuilder};
@@ -9,11 +12,21 @@ use clap::{
 };
 use url::Url;
 
+use sequoia_openpgp::packet::prelude::*;
+//use sequoia_openpgp::key::prelude::*;
 use sequoia_openpgp::cert::prelude::CertParser;
+use sequoia_openpgp::serialize::Serialize;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::parse::PacketParser;
 use sequoia_openpgp::policy::StandardPolicy;
-use sequoia_openpgp::packet::key::SecretKeyMaterial;
+//use sequoia_openpgp::packet::key::SecretKeyMaterial;
+use sequoia_openpgp::packet::Key;
+use sequoia_openpgp::packet::key::SecretParts;
+use sequoia_openpgp::packet::key::UnspecifiedRole;
+use sequoia_openpgp::packet::key::PrimaryRole;
+use sequoia_openpgp::serialize::stream::Message;
+use sequoia_openpgp::serialize::stream::Signer;
+use sequoia_openpgp::serialize::stream::LiteralWriter;
 
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
@@ -30,49 +43,65 @@ fn main() {
     o = o.version("0.1.0");
     o = o.author("Louis Holbrook <dev@holbrook.no>");
 
-    o = o.arg(clap::Arg::with_name("id")
+    o = o.arg(Arg::with_name("DATA")
+              .required(true)
+              );
+
+    o = o.arg(Arg::with_name("url")
+              .short("u")
+              .long("url")
+              .takes_value(true)
+              .required(true)
+              );
+
+    o = o.arg(Arg::with_name("ref_id")
               .short("i")
               .long("id")
               .takes_value(true)
               .multiple(true)
+              .number_of_values(1)
               );
 
-    o = o.arg(clap::Arg::with_name("key")
+    o = o.arg(Arg::with_name("key")
               .short("k")
               .long("key")
               .takes_value(true)
               );
 
-    o = o.arg(clap::Arg::with_name("URL")
-              .required(true)
-              .index(1)
-              );
 
     let args = o.get_matches();
 
     let mut d: Vec<u8> = vec!();
     let mut nv = String::from("0");
-    for mut v in args.values_of("id").unwrap() {
-        if v.len() < 2 {
-            continue;
-        }
-        if &v[..2] == "0x" {
-            v = &v[2..];
-            if v.len() % 2 > 0 {
-                nv.push_str(v);
-                v = nv.as_ref();
+
+    match args.values_of("ref_id") {
+        Some(vs) => {
+            for mut v in vs {
+                if v.len() < 2 {
+                    continue;
+                }
+                if &v[..2] == "0x" {
+                    v = &v[2..];
+                    if v.len() % 2 > 0 {
+                        nv.push_str(v);
+                        v = nv.as_ref();
+                    }
+                    debug!("hex input {:?}", &v);
+                    let mut r = hex::decode(v).unwrap();
+                    d.append(&mut r);
+                } else {
+                    d.append(&mut v.as_bytes().to_vec());
+                }
             }
-            debug!("hex input {:?}", &v);
-            let mut r = hex::decode(v).unwrap();
-            d.append(&mut r);
-        } else {
-            d.append(&mut v.as_bytes().to_vec());
-        }
+        },
+        None => {},
     }
+    
+    let data = args.value_of("DATA").unwrap();
     
     let mut auth: Option<AuthResult> = None;
 
-    let url_src = args.value_of("URL").unwrap();
+    let url_src = args.value_of("url").unwrap();
     let mut url = Url::parse(url_src).unwrap();
 
     let mut have_auth = false;
@@ -106,10 +135,9 @@ fn main() {
         None => {},
     }
 
-    //let mut match_fp: Vec<u8> = Vec::new();
-    let mut sk: Option<SecretKeyMaterial> = None;
+    let mut sk: Option<Key<SecretParts, PrimaryRole>> = None;
+    let p = StandardPolicy::new();
     if rk.v.len() > 0 {
-        let p = StandardPolicy::new();
         let fp_stem = home_dir().unwrap();
         let fp = fp_stem.join(".gnupg/secring.gpg");
         let pp = PacketParser::from_file(fp).unwrap();
@@ -127,7 +155,7 @@ fn main() {
                         .map(|kk| kk.key()) {
                             debug!("check key {} {}", k.fingerprint(), hex::encode(&auth_data.identity));
                             if k.fingerprint().as_bytes() == auth_data.identity {
-                                sk = Some(k);
+                                sk = Some(k.clone().role_into_primary());
                             }
                         }
                    
@@ -139,9 +167,42 @@ fn main() {
         }
     }
 
+    let mut sig_sink = vec!();
+    let mut pubkey_sink = vec!();
+
+    match sk {
+        Some(mut k) => {
+            debug!("have key {:?}", &k);
+            //let sig = data.as_bytes();
+            let mut pwd = String::new();
+            if k.secret().is_encrypted() {
+                pwd = rpassword::prompt_password("Key passphrase: ").unwrap();
+                let algo = k.pk_algo();
+                k.secret_mut()
+                    .decrypt_in_place(algo, &pwd.into());
+
+            }
+
+            let mut sig_msg = Message::new(&mut sig_sink);
+
+            let kp =  k.clone().into_keypair().unwrap();
+            let mut signer = Signer::new(sig_msg, kp)
+                .detached()
+                .build()
+                .unwrap();
+            signer.write_all(&data.as_bytes());
+            signer.finalize();
+
+            Packet::from(k.clone()).serialize(&mut pubkey_sink);
+            debug!("sig data {:?}", &sig_sink);
+            debug!("pubkey data {:?}", &pubkey_sink);
+        }, 
+        None => {},
+    };
+
     let ua = AgentBuilder::new().build();
     let r = ua.put(url.as_str())
-        .send_bytes(&d);
+        .send_bytes(&data.as_bytes());
 
     debug!("r {:?}", r.unwrap().into_string());
 }
