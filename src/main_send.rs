@@ -17,13 +17,11 @@ use clap::{
 };
 
 use sequoia_openpgp::packet::prelude::*;
-//use sequoia_openpgp::key::prelude::*;
 use sequoia_openpgp::cert::prelude::CertParser;
 use sequoia_openpgp::serialize::Serialize;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::parse::PacketParser;
 use sequoia_openpgp::policy::StandardPolicy;
-//use sequoia_openpgp::packet::key::SecretKeyMaterial;
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::key::PublicParts;
@@ -38,10 +36,6 @@ use base64::encode;
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
 
-
-//fn clean_hex(s: &[u8]) -> &[u8] {
-
-//}
 
 fn main() {
     env_logger::init();
@@ -122,7 +116,6 @@ fn main() {
 
     match args.value_of("key") {
         Some(mut v) => {
-            debug!("have key {:?}", v);
             if v.len() > 1 {
                 if &v[..2] == "0x" {
                     v = &v[2..];
@@ -132,7 +125,6 @@ fn main() {
                 nv.push_str(v);
                 v = nv.as_ref();
             }
-            debug!("hex key input {:?}", &v);
             auth_data.identity = hex::decode(&v).unwrap();
             rk.v = d.clone();
             let url_postfix = rk.pointer_for(&auth_data);
@@ -160,7 +152,6 @@ fn main() {
                         .for_signing()
                         .secret()
                         .map(|kk| kk.key()) {
-                            debug!("check key {} {}", k.fingerprint(), hex::encode(&auth_data.identity));
                             if k.fingerprint().as_bytes() == auth_data.identity {
                                 sk = Some(k.clone().role_into_primary());
                             }
@@ -182,8 +173,6 @@ fn main() {
             let mut sig_sink = vec!();
             let mut pubkey_sink = vec!();
 
-            debug!("have key {:?}", &k);
-            //let sig = data.as_bytes();
             let mut pwd = String::new();
             if k.secret().is_encrypted() {
                 pwd = rpassword::prompt_password("Key passphrase: ").unwrap();
@@ -208,9 +197,6 @@ fn main() {
            
             sig_bsf = base64::encode(sig_sink);
             pubkey_bsf = base64::encode(pubkey_sink);
-
-            debug!("sig data {:?}", &sig_bsf);
-            debug!("pubkey data {:?}", &pubkey_bsf);
         }, 
         None => {},
     };
@@ -220,10 +206,9 @@ fn main() {
 
     if sig_bsf.len() > 0 {
         let hdr_val = format!("PUBSIG pgp:{}:{}", pubkey_bsf, sig_bsf);
-        debug!("header val {}", &hdr_val);
         rq = rq.set("Authorization", hdr_val.as_str());
     }
     let rs = rq.send_bytes(&data.as_bytes());
 
-    debug!("r {:?}", rs.unwrap().into_string());
+    println!("{}", rs.unwrap().into_string().unwrap());
 }
