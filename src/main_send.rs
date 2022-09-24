@@ -3,14 +3,18 @@ use std::io::stdout;
 use std::io::copy;
 use std::io::Write;
 
-use log::{info, debug};
-use ureq::{Agent, AgentBuilder};
 use env_logger;
+
+use url::Url;
+
+use log::{info, debug};
+
+use ureq::{Agent, AgentBuilder};
+
 use clap::{
     App, 
     Arg,
 };
-use url::Url;
 
 use sequoia_openpgp::packet::prelude::*;
 //use sequoia_openpgp::key::prelude::*;
@@ -22,11 +26,14 @@ use sequoia_openpgp::policy::StandardPolicy;
 //use sequoia_openpgp::packet::key::SecretKeyMaterial;
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::packet::key::SecretParts;
+use sequoia_openpgp::packet::key::PublicParts;
 use sequoia_openpgp::packet::key::UnspecifiedRole;
 use sequoia_openpgp::packet::key::PrimaryRole;
 use sequoia_openpgp::serialize::stream::Message;
 use sequoia_openpgp::serialize::stream::Signer;
 use sequoia_openpgp::serialize::stream::LiteralWriter;
+
+use base64::encode;
 
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
@@ -167,11 +174,14 @@ fn main() {
         }
     }
 
-    let mut sig_sink = vec!();
-    let mut pubkey_sink = vec!();
+    let mut sig_bsf = String::new();
+    let mut pubkey_bsf = String::new();
 
     match sk {
         Some(mut k) => {
+            let mut sig_sink = vec!();
+            let mut pubkey_sink = vec!();
+
             debug!("have key {:?}", &k);
             //let sig = data.as_bytes();
             let mut pwd = String::new();
@@ -186,6 +196,7 @@ fn main() {
             let mut sig_msg = Message::new(&mut sig_sink);
 
             let kp =  k.clone().into_keypair().unwrap();
+            let pk: Key<PublicParts, PrimaryRole> = kp.public().clone().role_into_primary();
             let mut signer = Signer::new(sig_msg, kp)
                 .detached()
                 .build()
@@ -193,16 +204,26 @@ fn main() {
             signer.write_all(&data.as_bytes());
             signer.finalize();
 
-            Packet::from(k.clone()).serialize(&mut pubkey_sink);
-            debug!("sig data {:?}", &sig_sink);
-            debug!("pubkey data {:?}", &pubkey_sink);
+            Packet::from(pk).serialize(&mut pubkey_sink);
+           
+            sig_bsf = base64::encode(sig_sink);
+            pubkey_bsf = base64::encode(pubkey_sink);
+
+            debug!("sig data {:?}", &sig_bsf);
+            debug!("pubkey data {:?}", &pubkey_bsf);
         }, 
         None => {},
     };
 
     let ua = AgentBuilder::new().build();
-    let r = ua.put(url.as_str())
-        .send_bytes(&data.as_bytes());
+    let mut rq = ua.put(url.as_str());
 
-    debug!("r {:?}", r.unwrap().into_string());
+    if sig_bsf.len() > 0 {
+        let hdr_val = format!("PUBSIG pgp:{}:{}", pubkey_bsf, sig_bsf);
+        debug!("header val {}", &hdr_val);
+        rq = rq.set("Authorization", hdr_val.as_str());
+    }
+    let rs = rq.send_bytes(&data.as_bytes());
+
+    debug!("r {:?}", rs.unwrap().into_string());
 }
