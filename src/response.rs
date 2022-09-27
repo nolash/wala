@@ -87,20 +87,35 @@ pub fn exec_response(req: Request, r: RequestResult) {
         None => {
             match r.f {
                 Some(v) => {
+                    let mut content_type = String::new();
                     let mut res = Response::from_file(v);
                     match r.m {
                         Some(v) => {
+                            content_type.push_str(v.as_ref());
                             let h = Header{
                                 field: HeaderField::from_str("Content-Type").unwrap(),
-                                value: AsciiString::from_ascii(v.as_ref()).unwrap(),
+                                value: AsciiString::from_ascii(content_type.clone()).unwrap(),
                             };
                             res.add_header(h);
                         }, 
                         _ => {},
-                    }
+                    };
                     match r.n {
                         Some(v) => {
-                            let s = format!("attachment; filename=\"{}\"", &v);
+                            let s = match content_type.as_str() {
+                                "text/plain" => {
+                                    String::from("inline")
+                                },
+                                "text/html" => {
+                                    String::from("inline")
+                                },
+                                "text/markdown" => {
+                                    String::from("inline")
+                                },
+                                _ => {
+                                    format!("attachment; filename=\"{}\"", &v)
+                                },
+                            };
                             let h = Header{
                                 field: HeaderField::from_str("Content-Disposition").unwrap(),
                                 value: AsciiString::from_ascii(s.as_str()).unwrap(),
@@ -108,7 +123,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
                             res.add_header(h);
                         }, 
                         _ => {},
-                    }
+                    };
 
                     res = res.with_status_code(res_status);
                     for v in auth_origin_headers.iter() {
