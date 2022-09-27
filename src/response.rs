@@ -122,7 +122,27 @@ pub fn exec_response(req: Request, r: RequestResult) {
                             };
                             res.add_header(h);
                         }, 
-                        _ => {},
+                        _ => {
+                            let s = match content_type.as_str() {
+                                "text/plain" => {
+                                    String::from("inline")
+                                },
+                                "text/html" => {
+                                    String::from("inline")
+                                },
+                                "text/markdown" => {
+                                    String::from("inline")
+                                },
+                                _ => {
+                                    String::from("attachment")
+                                },
+                            };
+                            let h = Header{
+                                field: HeaderField::from_str("Content-Disposition").unwrap(),
+                                value: AsciiString::from_ascii(s.as_str()).unwrap(),
+                            };
+                            res.add_header(h);
+                        },
                     };
 
                     res = res.with_status_code(res_status);
