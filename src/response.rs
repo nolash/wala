@@ -11,6 +11,9 @@ use tiny_http::{
 };
 use ascii::AsciiString;
 
+use mime::Mime;
+use mime::TEXT;
+
 use crate::record::{
     RequestResult,
     RequestResultType,
@@ -102,20 +105,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     };
                     match r.n {
                         Some(v) => {
-                            let s = match content_type.as_str() {
-                                "text/plain" => {
-                                    String::from("inline")
-                                },
-                                "text/html" => {
-                                    String::from("inline")
-                                },
-                                "text/markdown" => {
-                                    String::from("inline")
-                                },
-                                _ => {
-                                    format!("attachment; filename=\"{}\"", &v)
-                                },
-                            };
+                            let s = format!("attachment; filename=\"{}\"", &v);
                             let h = Header{
                                 field: HeaderField::from_str("Content-Disposition").unwrap(),
                                 value: AsciiString::from_ascii(s.as_str()).unwrap(),
@@ -123,14 +113,9 @@ pub fn exec_response(req: Request, r: RequestResult) {
                             res.add_header(h);
                         }, 
                         _ => {
-                            let s = match content_type.as_str() {
-                                "text/plain" => {
-                                    String::from("inline")
-                                },
-                                "text/html" => {
-                                    String::from("inline")
-                                },
-                                "text/markdown" => {
+                            let m = mime::Mime::from_str(&content_type).unwrap();
+                            let s = match m.type_() {
+                                mime::TEXT => {
                                     String::from("inline")
                                 },
                                 _ => {
