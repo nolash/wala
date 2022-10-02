@@ -118,6 +118,9 @@ pub fn exec_response(req: Request, r: RequestResult) {
                                 mime::TEXT => {
                                     String::from("inline")
                                 },
+                                mime::IMAGE => {
+                                    String::from("inline")
+                                },
                                 _ => {
                                     String::from("attachment")
                                 },
