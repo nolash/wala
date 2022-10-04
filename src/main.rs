@@ -56,7 +56,8 @@ use tempfile::tempfile;
 use wala::auth::mock::auth_check as mock_auth_check;
 
 #[cfg(feature = "pgpauth")]
-use wala::auth::pgp::auth_check as pgp_auth_check;
+//use wala::auth::pgp::auth_check as pgp_auth_check;
+use wala::auth::pgp_sequoia::auth_check as pgp_auth_check;
 
 
 #[derive(Debug)]
