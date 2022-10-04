@@ -165,7 +165,8 @@ mod tests {
         let fp = p.join(r.v.unwrap());
         let f = File::open(fp).unwrap();
         let meta = f.metadata().unwrap();
-        let id_l = (id_b.len() * 2) as u64;
+        //let id_l = (id_b.len() * 2) as u64;
+        let id_l = id_b.len() as u64;
         let r_l = meta.len();
         assert_eq!(r_l, id_l);
     }
