@@ -34,9 +34,9 @@ version = "^0.2.3"
 features = ["cli"]
 optional = true
 
-[dependencies.pgp]
-version = "^0.7.2"
-optional = true
+#[dependencies.pgp]
+#version = "^0.7.2"
+#optional = true
 
 [dependencies.nettle]
 version = "7.2.0"
