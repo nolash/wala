@@ -25,12 +25,17 @@
 //! serve uploaded files from the current directory. This behavior can be modified by the argument
 //! options. See `cargo run -- --help` for details.
 //!
+//! ## Uploading content
+//!
 //! Content is stored by making `PUT` requests to the server. With a server running on
-//! `localhost:8000`a `PUT` with the content body `foo` can in turn be retrieved at:
+//! `localhost:8000` a `PUT` with the content body `foo` can in turn be retrieved at:
 //!
 //! ``` ignore,
 //! http://localhost:8000/2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae 
 //! ```
+//!
+//! A helper tool [wala_send](../wala_send/index.html) is provided to make mutable reference uploads more
+//! convenient.
 
 /// Handle the custom PUBSIG HTTP authentication scheme to generate mutable references.
 pub mod auth;
