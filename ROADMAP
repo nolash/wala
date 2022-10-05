@@ -1,0 +1,2 @@
+- 0.1.2
+	* use reader instead of load to memory when verifying signatures
