@@ -12,8 +12,14 @@ categories = ["web-programming::http-server"]
 
 [[bin]]
 name = 'wala_send'
-path = 'src/main_send.rs'
+path = 'src/wala_send/main.rs'
 required_features = 'client'
+doc = true
+
+[[bin]]
+name = 'wala'
+path = 'src/main.rs'
+doc = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

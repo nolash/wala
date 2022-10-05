@@ -1,3 +1,31 @@
+#![crate_name = "wala_send"]
+
+//! This is a convenience tool to upload content to wala under mutable references.
+//!
+//! It is still in a very unsophisticated state, and has two notable limitations:
+//!
+//! - Content to upload must be provided as a literal argument
+//! - It only uses gnupg private keys stored in the keyring in `~/.gnupg/`.
+//!
+//! ## Examples
+//!
+//! Assuming that `wala` is running on default host and port - localhost:8000.
+//!
+//! ### Upload content to a content address
+//!
+//! ``` ignore,
+//! wala_send -u http://localhost:8000 foo
+//! ```
+//!
+//! ### Upload content to a mutable reference 
+//!
+//! ``` ignore,
+//! wala_send -u http://localhost:8000 -k <pgp_fingerprint> -i <keyword> foo
+//! ```
+//!
+//! For more details on what funcionality [wala](wala) provides, please consult the
+//! [library crate documentation](wala).
+
 use std::env::home_dir;
 use std::io::stdout;
 use std::io::copy;
@@ -37,6 +65,7 @@ use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
 
 
+#[doc(hidden)]
 fn main() {
     env_logger::init();
 
