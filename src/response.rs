@@ -77,6 +77,12 @@ pub fn exec_response(req: Request, r: RequestResult) {
 
     let auth_origin_headers = origin_headers();
 
+    let server_header_v = format!("wala/{}, tiny_http (Rust)", env!("CARGO_PKG_VERSION"));
+    let server_header = Header{
+            field: HeaderField::from_str("Server").unwrap(),
+            value: AsciiString::from_ascii(server_header_v).unwrap(),
+        };
+
     match r.v {
         Some(v) => {
             let mut res = Response::from_string(v);
@@ -84,6 +90,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
             for v in auth_origin_headers.iter() {
                 res.add_header(v.clone());
             }
+            res.add_header(server_header);
             req.respond(res);
             return;
         },
@@ -137,6 +144,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     for v in auth_origin_headers.iter() {
                         res.add_header(v.clone());
                     }
+                    res.add_header(server_header);
                     req.respond(res);
                     return;
                 },
@@ -145,6 +153,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     for v in auth_origin_headers.iter() {
                         res.add_header(v.clone());
                     }
+                    res.add_header(server_header);
                     req.respond(res);
                     return;
                 },
