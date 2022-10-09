@@ -202,39 +202,42 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
     };
 
     
-//    let key = match check_key_single(&key_data) {
-//        Some(v) => {
-//            debug!("using public key (raw) {:?}", v.key_id());
-//            if !check_sig_single(&v, sig_data, data, data_length) {
-//                error!("invalid raw signature for {:?}", hex::encode(&v.fingerprint()));
-//                return Err(AuthError{});
-//            }
-//            debug!("found valid raw key {:?}", hex::encode(&v.fingerprint()));
-//            v
-//        },
-//        None => {
-//            let key = match check_key_bundle(&key_data) {
-//                Some(v) => {
-//                    debug!("using public key (bundle) {:?}", v.key_id());
-//                    if !check_sig_bundle(&v, sig_data, data, data_length) {
-//                        error!("invalid bundle signature for {:?}", hex::encode(&v.fingerprint()));
-//                        return Err(AuthError{});
-//                    }
-//                    debug!("found valid key bundle {:?}", hex::encode(&v.fingerprint()));
-//                    v
-//                },
-//                None => {
-//                    return Err(AuthError{});
-//                },
-//            };
-//            key
-//        },
-//    };
+    let key = match check_key_single(&key_data) {
+        Some(v) => {
+            debug!("using public key (raw) {:?}", v.keyid());
+            let fingerprint = &v.fingerprint().to_vec().unwrap();
+            let fingerprint_hex = hex::encode(&fingerprint);
+            if !check_sig_single(&v, sig_data, data, data_length) {
+                error!("invalid raw signature for {:?}", &fingerprint_hex);
+                return Err(AuthError{});
+            }
+            debug!("found valid raw key {:?}", &fingerprint_hex);
+            v
+        },
+        None => {
+            let key = match check_key_bundle(&key_data) {
+                Some(v) => {
+                    let fingerprint = &v.fingerprint().to_vec().unwrap();
+                    let fingerprint_hex = hex::encode(&fingerprint);
+                    debug!("using public key (bundle) {:?}", v.keyid());
+                    if !check_sig_bundle(&v, sig_data, data, data_length) {
+                        error!("invalid bundle signature for {:?}", &fingerprint_hex);
+                        return Err(AuthError{});
+                    }
+                    debug!("found valid key bundle {:?}", &fingerprint_hex);
+                    v
+                },
+                None => {
+                    return Err(AuthError{});
+                },
+            };
+            key.primary_key().key().clone()
+        },
+    };
 
 
     let res = AuthResult {
-        //identity: key.fingerprint(),
-        identity: vec!(),
+        identity: key.fingerprint().to_vec().unwrap(),
         error: false,
     };
     Ok(res)
@@ -249,8 +252,8 @@ mod tests {
     use super::{
         check_key_bundle,
         check_key_single,
-        //check_sig_single,
-        //check_sig_bundle,
+        check_sig_single,
+        check_sig_bundle,
     };
 
 
