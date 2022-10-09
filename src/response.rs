@@ -32,7 +32,7 @@ pub fn origin_headers() -> Vec<Header> {
     });
     headers.push(Header{
         field: HeaderField::from_str("Access-Control-Allow-Headers").unwrap(),
-        value: AsciiString::from_ascii("Content-Type,Authorization,X-Filename").unwrap(),
+        value: AsciiString::from_ascii("Content-Type,Authorization,X-Filename,X-Wala-Trace").unwrap(),
     });
 
     let server_header_v = format!("wala/{}, tiny_http (Rust)", env!("CARGO_PKG_VERSION"));

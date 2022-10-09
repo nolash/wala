@@ -15,7 +15,7 @@ use crate::record::{
 };
 
 
-pub fn trace_request(p: &Path, res: &RequestResult) {
+pub fn trace_request(p: &Path, res: &RequestResult, store_identity: bool) {
     if res.typ != RequestResultType::Changed {
         return;
     }
@@ -35,18 +35,13 @@ pub fn trace_request(p: &Path, res: &RequestResult) {
     let mut identity = String::new();
     match &res.a {
         Some(auth) => {
-            if auth.active() {
+            if auth.active() && store_identity {
                 content = auth.identity.clone();
                 identity = hex::encode(&content);
-            } else {
-                rf = String::new();
             }
         },
         None => {
         },
-    }
-    if rf.len() == 0 {
-        return;
     }
     let fp = p.join(&rf);
     let mut f = File::create(fp).unwrap();

@@ -26,6 +26,8 @@ use std::io::{
 
 use env_logger;
 
+use ascii::AsciiStr;
+
 use wala::auth::{
     AuthSpec,
     AuthResult,
@@ -325,11 +327,19 @@ fn main() {
         }
 
         #[cfg(feature="trace")]
-        trace_request(&spool_path, &result);
+        {
+            for h in req.headers() {
+                if h.field.equiv("X-Wala-Trace") {
+                    let mut identity = false;
+                    if h.value.eq_ignore_ascii_case(AsciiStr::from_ascii("identity").unwrap()) {
+                        identity = true;
+                    }
+                    trace_request(&spool_path, &result, identity);
+                }
+            }
+        }
 
         exec_response(req, result);
 
     }
 }
-
-
