@@ -1,3 +1,6 @@
+- 0.1.2
+	* verify pgp signature from reader instead of copying to memory
+	* announce capabilities in headers
 - 0.1.1
 	* Replace pgp package with sequoia-openpgp
 - 0.1.0

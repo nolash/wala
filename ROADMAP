@@ -1,2 +1,2 @@
-- 0.1.2
-	* use reader instead of load to memory when verifying signatures
+- 0.1.3
+	* Remove all compile warnings
