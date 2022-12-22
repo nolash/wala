@@ -134,7 +134,9 @@ pub fn exec_response(req: Request, r: RequestResult) {
                             };
                             res.add_header(h);
                         }, 
-                        _ => {},
+                        _ => {
+                            content_type.push_str("application/octet-stream");
+                        },
                     };
                     match r.n {
                         Some(v) => {

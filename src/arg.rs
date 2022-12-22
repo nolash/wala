@@ -53,7 +53,7 @@ impl Settings {
 
     pub fn from_args() -> Settings {
         let mut o = App::new("wala");
-        o = o.version("0.0.1");
+        o = o.version(env!("CARGO_PKG_VERSION"));
         o = o.author("Louis Holbrook <dev@holbrook.no>");
         o = o.arg(
             Arg::with_name("host")
