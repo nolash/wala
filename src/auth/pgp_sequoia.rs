@@ -104,7 +104,6 @@ impl VerificationHelper for Helper {
                 (0, MessageLayer::SignatureGroup { results }) => {
                     match results.into_iter().next() {
                         Some(Ok(_)) => {
-                            println!("yay");
                         },
                         None => {
                             panic!("none");
@@ -128,7 +127,6 @@ fn check_sig_bundle(public_key: &Cert, signature_data: Vec<u8>, mut message: imp
     let mut sig_bundle_packets = PacketParser::from_bytes(&signature_data).unwrap();
     while let PacketParserResult::Some(mut pp) = sig_bundle_packets {
         let mut pk = pp.packet.clone();
-        println!("foo");
         if let Packet::Signature(ref mut sig) = pk {
             let pbytes = pk.to_vec().unwrap();
             let helper = Helper{
