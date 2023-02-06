@@ -211,4 +211,5 @@ impl Error for AuthError {
 pub mod mock;
 
 #[cfg(feature = "pgpauth")]
-pub mod pgp_sequoia;
+//pub mod pgp_sequoia;
+pub mod pgp;

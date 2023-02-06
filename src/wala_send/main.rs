@@ -98,6 +98,12 @@ fn main() {
               .takes_value(true)
               );
 
+    o = o.arg(Arg::with_name("bundle")
+              .short("b")
+              .long("bundle")
+              .takes_value(true)
+              );
+
 
     let args = o.get_matches();
 
@@ -129,6 +135,8 @@ fn main() {
     
     let data = args.value_of("DATA").unwrap();
     
+    let bundle = args.value_of("bundle").unwrap_or("~/.gnupg/secring.gpg");
+    
     let mut auth: Option<AuthResult> = None;
 
     let url_src = args.value_of("url").unwrap();
@@ -155,10 +163,11 @@ fn main() {
                 v = nv.as_ref();
             }
             auth_data.identity = hex::decode(&v).unwrap();
-            rk.v = d.clone();
-            let url_postfix = rk.pointer_for(&auth_data);
-            let url_postfix_hex = hex::encode(url_postfix);
-            url = url.join(&url_postfix_hex).unwrap();
+            //rk.v = d.clone();
+            //let url_postfix = rk.pointer_for(&auth_data);
+            //let url_postfix_hex = hex::encode(url_postfix);
+            //url = url.join(&url_postfix_hex).unwrap();
+            url = url.join(&v).unwrap();
         },
         None => {},
     }
@@ -166,10 +175,10 @@ fn main() {
     let mut sk: Option<Key<SecretParts, PrimaryRole>> = None;
     let p = StandardPolicy::new();
     if rk.v.len() > 0 {
-        let fp_stem = home_dir().unwrap();
-        let fp = fp_stem.join(".gnupg/secring.gpg");
+        //let fp_stem = home_dir().unwrap();
+        //let fp = fp_stem.join(bundle);
+        let fp = bundle;
         let pp = PacketParser::from_file(fp).unwrap();
-
         // find a way to stop iter when key found
         for v in CertParser::from(pp) {
             match v {
@@ -181,8 +190,10 @@ fn main() {
                         .for_signing()
                         .secret()
                         .map(|kk| kk.key()) {
+                            debug!("kkkkk {:?} {:?}", k.fingerprint(), hex::encode(&auth_data.identity));
                             if k.fingerprint().as_bytes() == auth_data.identity {
                                 sk = Some(k.clone().role_into_primary());
+                                debug!("key found");
                             }
                         }
                    
@@ -191,6 +202,12 @@ fn main() {
                     panic!("keyparse fail: {:?}", e);
                 }
             };
+        }
+        match sk {
+            None => {
+                panic!("key not found");
+            },
+            _ => {},
         }
     }
 
@@ -236,6 +253,8 @@ fn main() {
     if sig_bsf.len() > 0 {
         let hdr_val = format!("PUBSIG pgp:{}:{}", pubkey_bsf, sig_bsf);
         rq = rq.set("Authorization", hdr_val.as_str());
+        debug!("Authorization header pubkey {:?}", pubkey_bsf);
+        debug!("Authorization header signature {:?}", sig_bsf);
     }
     let rs = rq.send_bytes(&data.as_bytes());
 

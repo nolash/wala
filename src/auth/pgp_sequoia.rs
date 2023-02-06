@@ -44,6 +44,7 @@ fn check_key_single(data: &Vec<u8>) -> Option<Key<PublicParts, PrimaryRole>> {
             return Some(pubkey);
         },
         Err(e) => {
+            debug!("not a standalone public key");
         },
     };
     None
@@ -57,6 +58,7 @@ fn check_key_bundle(data: &Vec<u8>) -> Option<Cert> {
             return Some(v);
         },
         Err(e) => {
+            debug!("not a bundled public key");
         },
     };
     None
@@ -68,7 +70,7 @@ fn check_sig_single(public_key: &Key<PublicParts, PrimaryRole>, signature_data: 
             let mut hasher = Sha256::default();
             let mut message_data: Vec<u8> = vec!();
             message.read_to_end(&mut message_data);
-            debug!("checking mesage {:?}", &message_data);
+            debug!("checking mesage for single signature packet {:?}", &message_data);
             hasher.update(&message_data);
             match v.verify_hash(&public_key, Box::new(hasher)) {
                 Ok(v) => {
@@ -79,7 +81,7 @@ fn check_sig_single(public_key: &Key<PublicParts, PrimaryRole>, signature_data: 
             }
         },
         Err(e) => {
-
+            debug!("not a standalone signature");
         },
     }
     false
@@ -101,21 +103,20 @@ impl VerificationHelper for Helper {
 
         for (i, layer) in structure.into_iter().enumerate() {
             match (i, layer) {
-                (0, MessageLayer::SignatureGroup { results }) => {
+                (_, MessageLayer::SignatureGroup { results }) => {
                     match results.into_iter().next() {
                         Some(Ok(_)) => {
-                            println!("yay");
                         },
                         None => {
                             panic!("none");
                         },
                         Some(Err(e)) => {
-                            panic!("err");
+                            panic!("err {:?}", e);
                         },
                     };
                 },
                 _ => {
-                    println!("ouch");
+                    error!("ouch");
                 },
             };
         }
@@ -128,7 +129,6 @@ fn check_sig_bundle(public_key: &Cert, signature_data: Vec<u8>, mut message: imp
     let mut sig_bundle_packets = PacketParser::from_bytes(&signature_data).unwrap();
     while let PacketParserResult::Some(mut pp) = sig_bundle_packets {
         let mut pk = pp.packet.clone();
-        println!("foo");
         if let Packet::Signature(ref mut sig) = pk {
             let pbytes = pk.to_vec().unwrap();
             let helper = Helper{

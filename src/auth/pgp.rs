@@ -106,7 +106,9 @@ fn check_sig_bundle(public_key: &PublicKey, signature_data: Vec<u8>, mut message
                 Ok(v) => {
                     return true;
                 },
-                _ => {},
+                Err(e) => {
+                    error!("not a bundle signature: {:?}", e);
+                },
             };
         },
         _ => {},
@@ -163,6 +165,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
             let key = match check_key_bundle(&key_data) {
                 Some(v) => {
                     debug!("using public key (bundle) {:?}", v.key_id());
+                    //if !check_sig_single(&v, sig_data, data, data_length) {
                     if !check_sig_bundle(&v, sig_data, data, data_length) {
                         error!("invalid bundle signature for {:?}", hex::encode(&v.fingerprint()));
                         return Err(AuthError{});
