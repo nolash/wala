@@ -87,6 +87,11 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
             }
         },
         Method::Get => {
+            if &url == "" {
+                let mut res = RequestResult::new(RequestResultType::Found);
+                res = res.with_content(String::new());
+                return res;
+            }
             let digest = match hex::decode(&url) {
                 Err(e) => {
                     let err_str = format!("{}", e);

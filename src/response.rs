@@ -60,13 +60,15 @@ pub fn origin_headers() -> Vec<Header> {
         cap_headers.push(h);
     };
 
-    if cap_headers.len() > 0 {
-        let v = cap_headers.join(",");
-        headers.push(Header{
-            field: HeaderField::from_str("X-Wala-Cap").unwrap(),
-            value: AsciiString::from_ascii(v).unwrap(),
-        });
+    if cap_headers.len() == 0 {
+        cap_headers.push(String::from("default")); 
     }
+
+    let v = cap_headers.join(",");
+    headers.push(Header{
+        field: HeaderField::from_str("X-Wala-Cap").unwrap(),
+        value: AsciiString::from_ascii(v).unwrap(),
+    });
     headers
 }
 
