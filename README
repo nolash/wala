@@ -2,6 +2,9 @@ Build the binaries:
 
 $ cargo build --all-features --release
 
+Build the Docker image:
+
+$ docker buildx build -t wala:latest . 
 
 Running the server
 
