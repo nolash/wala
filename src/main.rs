@@ -23,10 +23,15 @@ use std::io::{
     Seek,
     empty,
 };
+use std::time::Duration;
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use env_logger;
-
 use ascii::AsciiStr;
+use signal_hook::flag;
+use signal_hook::consts;
 
 use wala::auth::{
     AuthSpec,
@@ -255,14 +260,32 @@ fn main() {
     };
     let srv = Server::new(srv_cfg).unwrap();
 
-    loop {
-        let b = srv.recv();
-        let mut req: Request;
+    let term = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term)).unwrap();
+
+    #[cfg(feature = "docker")]
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term)).unwrap();
+    
+    const loop_timeout: Duration = Duration::new(1, 0);
+
+    while !term.load(Ordering::Relaxed) {
+
+        let b = srv.recv_timeout(loop_timeout);
+        let mut hasreq: Option<Request>;
         match b {
-            Ok(v) => req = v,
+            Ok(v) => hasreq = v,
             Err(e) => {
                 error!("{}", e);
                 break;
+            }
+        };
+        let mut req: Request;
+        match hasreq {
+            Some(v) => {
+                req = v;
+            },
+            None => {
+                continue 
             }
         };
 

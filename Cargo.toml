@@ -64,6 +64,10 @@ optional = true
 version = "^7.0.0"
 optional = true
 
+[dependencies.signal-hook]
+version = "^0.3.15"
+optional = true
+
 [features]
 pgpauth = ["sequoia-openpgp", "base64", "nettle"]
 dev = []
