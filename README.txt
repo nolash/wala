@@ -1,7 +1,3 @@
-Make sure you use the following toolchain (rustup):
-
-nightly-2022-11-14-x86_64-unknown-linux-gnu
-
 Build the binaries:
 
 $ cargo build --all-features --release
