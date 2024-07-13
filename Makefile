@@ -12,8 +12,8 @@ test:
 
 doc:
 	-asciidoc -b docbook5 README.adoc 
-	-pandoc -f docbook -t gfm -o README.md README.xml
-	-pandoc -f docbook -t plain -o README.txt README.xml
+	-pandoc -f docbook -t gfm -o README.md -T Wala README.xml
+	-pandoc -f docbook -t plain -o README.txt -T Wala README.xml
 	rm -vf README.xml
 
 clean:
