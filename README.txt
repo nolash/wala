@@ -1,32 +1,33 @@
-Build the binaries:
+HTTP service that makes uploaded content available at the path of its
+digests(s)
 
-$ cargo build --all-features --release
+Currently only SHA256 is supported.
 
-Build the Docker image:
+Wala is not intended to be used by itself in a production environment.
+Please consider setting a reverse proxy in front of it.
 
-$ docker build -t wala:latest . 
+Build
 
-or
+Rustup example:
 
-$ docker buildx build -t wala:latest . 
+rustup run 1.67 cargo build -v --bin --all-features --release
 
-Running the server
+Running
 
-$ ./target/release/wala -d <storage_directory>
+./target/release/wala -d <storage_directory>
 
-Logging output detail can be adjusted by setting environment variable RUST_LOG to debug, info, warn or error.
+Logging output detail can be adjusted by setting environment variable
+RUST_LOG to debug, info, warn or error.
 
+./target/release/wala --help for more options.
 
-Upload the string "foo" using the send tool
+Example interaction
 
-$ ./target/release/wala_send -u http://localhost:8000 foo
+    curl -X PUT http://localhost:8000 --data "foo"
+    2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+    curl -X GET http://localhost:8000/2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+    foo
 
+Known issues
 
-Upload the string "xyzzy" under a mutable reference with keyword "foo" using the send tool:
-
-$ ./target/release/wala_send -u http://localhost:8000 -k <pgp key fingerprint> -i bar xyzzy
-
-
-Note!
-
-Wala is not intended to be used by itself in a production environment. Please consider setting a reverse proxy in front of it.
+wala_send is broken :'(
