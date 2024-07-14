@@ -18,7 +18,7 @@ Please consider setting a reverse proxy in front of it.
 
 Rustup example:
 
-`rustup run 1.67 cargo build -v --bin --all-features --release`
+`rustup run 1.67 cargo build -v --bin wala --all-features --release`
 
 # Running
 
