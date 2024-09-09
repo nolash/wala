@@ -1,3 +1,6 @@
+- 0.1.8
+	* Add build script to include bzip2 dynamic link directive to c compiler
+
 - 0.1.7
 	* Update engine constraint
 	* Add makefile
