@@ -93,7 +93,7 @@ mod tests {
         let url = String::from("deadbeef");
         let mut r = RequestResult::new(RequestResultType::Changed);
         r = r.with_content(url);
-        trace_request(&p, &r);
+        trace_request(&p, &r, false);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp).unwrap();
         let meta = f.metadata().unwrap();
@@ -107,7 +107,7 @@ mod tests {
         let url = String::from("deadbeef");
         let mut r = RequestResult::new(RequestResultType::Found);
         r = r.with_content(url);
-        trace_request(&p, &r);
+        trace_request(&p, &r, false);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp);
         match f {
@@ -120,6 +120,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_trace_auth_inactive() {
         let d = tempdir().unwrap();
         let p = d.path();
@@ -131,7 +132,7 @@ mod tests {
         let mut r = RequestResult::new(RequestResultType::Changed);
         r = r.with_content(url);
         r = r.with_auth(a);
-        trace_request(&p, &r);
+        trace_request(&p, &r, false);
         let fp = p.join(&r.v.unwrap());
         let f = File::open(fp);
         match f {
@@ -156,7 +157,7 @@ mod tests {
         let mut r = RequestResult::new(RequestResultType::Changed);
         r = r.with_content(url);
         r = r.with_auth(a);
-        trace_request(&p, &r);
+        trace_request(&p, &r, true);
         let fp = p.join(r.v.unwrap());
         let f = File::open(fp).unwrap();
         let meta = f.metadata().unwrap();

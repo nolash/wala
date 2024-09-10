@@ -7,6 +7,7 @@ license = "GPL-3.0-or-later"
 documentation = "https://defalsify.org/pub/doc/wala/0.1.8/wala"
 description = "Content-adressed HTTP file server"
 repository = "https://git.defalsify.org/wala"
+homepage = "https://defalsify.org"
 # from https://crates.io/category_slugs
 categories = ["web-programming::http-server"]
 
