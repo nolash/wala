@@ -9,9 +9,23 @@ Currently only SHA256 is supported.
 Wala is not intended to be used by itself in a production environment.
 Please consider setting a reverse proxy in front of it.
 
+Install
+
+defalsify.org hosts a pre-assembled crate for wala.
+
+To install, first addthe defalsify registry to .cargo/config.toml:
+
+    [registries]
+    ...
+    defalsify = { index = "sparse+https://defalsify.org/pub/rust/" }
+
+Then install with this command:
+
+cargo install --registry defalsify --all-features --release
+
 Build
 
-Rustup example:
+To build from source:
 
 rustup run 1.67 cargo build -v --bin wala --all-features --release
 
