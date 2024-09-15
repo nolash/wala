@@ -1,9 +1,9 @@
 [package]
 name = "wala"
-version = "0.1.8-beta.1"
+version = "0.1.8-beta.2"
 edition = "2021"
 rust-version = "1.67"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 documentation = "https://defalsify.org/pub/doc/wala/0.1.8/wala"
 description = "Content-adressed HTTP file server"
 repository = "https://git.defalsify.org/wala"
