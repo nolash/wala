@@ -124,6 +124,42 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                 },
             };
         },
+        Method::Head => {
+            if &url == "" {
+                let mut res = RequestResult::new(RequestResultType::RecordError);
+                res = res.with_content(String::new());
+                return res;
+            }
+            let digest = match hex::decode(&url) {
+                Err(e) => {
+                    let err_str = format!("{}", e);
+                    let mut res = RequestResult::new(RequestResultType::InputError);
+                    res = res.with_content(String::from(err_str));
+                    return res;
+                },
+                Ok(v) => {
+                    v
+                },
+            };
+
+            let full_path_buf = path.join(&url);
+            debug!("url {} resolved to {:?}", &url, &full_path_buf);
+            let mut res = RequestResult::new(RequestResultType::Found);
+            match full_path_buf.metadata() {
+                Ok(m) => {
+                    res = res.with_length(m.len());
+                    #[cfg(feature = "meta")]
+                    {
+                        res.m = get_meta_type(path, &digest);
+                        res.n = get_meta_filename(path, &digest);
+                    }
+                },
+                Err(e) => {
+                    res = RequestResult::new(RequestResultType::ReadError);
+                },
+            }
+            return res;
+        },
         _ => {},
     };
     RequestResult::new(RequestResultType::InputError)

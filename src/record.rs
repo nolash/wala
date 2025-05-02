@@ -50,6 +50,8 @@ pub enum RequestResultType {
 pub struct RequestResult {
     /// Result code of the request.
     pub typ: RequestResultType,
+    /// Contains the length of the body of a GET or HEAD request.
+    pub l: Option<u64>,
     /// Contains the result body (reference string) of a PUT request.
     pub v: Option<String>,
     /// Contains the result body (as a reader) of a GET request.
@@ -69,6 +71,7 @@ impl RequestResult {
         RequestResult {
             typ: typ,
             v: None,
+            l: None,
             f: None,
             m: None,
             n: None,
@@ -94,6 +97,11 @@ impl RequestResult {
 
     pub fn with_aliased(mut self, s: String) -> RequestResult {
         self.s = Some(s);
+        self
+    }
+
+    pub fn with_length(mut self, l: u64) -> RequestResult {
+        self.l = Some(l);
         self
     }
 }

@@ -119,6 +119,18 @@ pub fn exec_response(req: Request, r: RequestResult) {
             for v in auth_origin_headers.iter() {
                 res.add_header(v.clone());
             }
+            match r.l {
+                Some(l) => {
+                    let h = Header{
+                        field: HeaderField::from_str("Content-Length").unwrap(),
+                        value: AsciiString::from_ascii(l.to_string()).unwrap(),
+                    };
+                    res.add_header(h);
+                },
+                _ => {
+                },
+            };
+
             req.respond(res);
             return;
         },
@@ -170,6 +182,18 @@ pub fn exec_response(req: Request, r: RequestResult) {
                         },
                     };
 
+                    match r.l {
+                        Some(l) => {
+                            let h = Header{
+                                field: HeaderField::from_str("Content-Length").unwrap(),
+                                value: AsciiString::from_ascii(l.to_string()).unwrap(),
+                            };
+                            res.add_header(h);
+                        },
+                        _ => {
+                        },
+                    };
+                    
                     res = res.with_status_code(res_status);
                     for v in auth_origin_headers.iter() {
                         res.add_header(v.clone());
@@ -182,12 +206,26 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     for v in auth_origin_headers.iter() {
                         res.add_header(v.clone());
                     }
+
+                    match r.l {
+                        Some(l) => {
+                            let h = Header{
+                                field: HeaderField::from_str("Content-Length").unwrap(),
+                                value: AsciiString::from_ascii(l.to_string()).unwrap(),
+                            };
+                            res.add_header(h);
+                        },
+                        _ => {
+                        },
+                    };
+
                     req.respond(res);
                     return;
                 },
             }
         }
     }
+
 }
 
 #[cfg(test)]
