@@ -79,12 +79,20 @@ fn filename_path(path: &Path, digest: &Vec<u8>) -> Result<PathBuf, std::io::Erro
 /// * `path` - Absolute path to storage diectory.
 /// * `digest` - Immutable reference to content.
 /// * `typ` - MIME type to store for the content.
+/// TODO: return none on write meta error
 pub fn register_type(path: &Path, digest: &Vec<u8>, typ: Mime) -> Result<(), std::io::Error> {
     match meta_path(path, digest) {
         Ok(v) => {
             match File::create(v) {
                 Ok(mut f) => {
-                    f.write(typ.as_ref().as_bytes());
+                    match f.write(typ.as_ref().as_bytes()) {
+                        Ok(_) => {
+                            debug!("wrote meta to {:?}", f);
+                        },
+                        Err(e) => {
+                            error!("could not write meta to {:?} ({})", f, e);
+                        },
+                    };
                 }
                 Err(e) => {
                     return Err(e);
@@ -104,13 +112,20 @@ pub fn register_type(path: &Path, digest: &Vec<u8>, typ: Mime) -> Result<(), std
 /// * `path` - Absolute path to storage diectory.
 /// * `digest` - Immutable reference to content.
 /// * `typ` - MIME type to store for the content.
+/// TODO: return none on write error
 pub fn register_filename(path: &Path, digest: &Vec<u8>, name: String) -> Result<(), std::io::Error> {
     match filename_path(path, digest) {
         Ok(v) => {
             match File::create(v) {
                 Ok(mut f) => {
-                    f.write(name.as_str().as_bytes());
-                    debug!("wrote to {:?}", f);
+                    match f.write(name.as_str().as_bytes()) {
+                        Ok(_) => {
+                            debug!("wrote to {:?}", f);
+                        },
+                        Err(e) => {
+                            error!("could not write to {:?} ({})", f, e);
+                        },
+                    };
                 }
                 Err(e) => {
                     return Err(e);

@@ -11,8 +11,8 @@ use tiny_http::{
 };
 use ascii::AsciiString;
 
-use mime::Mime;
-use mime::TEXT;
+//use mime::Mime;
+//use mime::TEXT;
 
 use crate::record::{
     RequestResult,
@@ -79,11 +79,13 @@ pub fn preflight_response(req: Request) {
     for v in auth_origin_headers.iter() {
         res.add_header(v.clone());
     }
-    req.respond(res);
+    _ = req.respond(res);
     debug!("served options request");
     return;
 }
 
+// req marked as unused but seems used in all branches
+// TODO: return something reasonable in all cases e.g. the respond return value
 pub fn exec_response(req: Request, r: RequestResult) {
     let res_status: StatusCode;
     match r.typ {
@@ -110,10 +112,11 @@ pub fn exec_response(req: Request, r: RequestResult) {
         },
     }
 
-    let auth_origin_headers = origin_headers();
+    debug!("have status, {:?}", &res_status);
 
     match r.v {
         Some(v) => {
+            let auth_origin_headers = origin_headers();
             let mut res = Response::from_string(v);
             res = res.with_status_code(res_status);
             for v in auth_origin_headers.iter() {
@@ -131,10 +134,11 @@ pub fn exec_response(req: Request, r: RequestResult) {
                 },
             };
 
-            req.respond(res);
+            _ = req.respond(res);
             return;
         },
         None => {
+            let auth_origin_headers = origin_headers();
             match r.f {
                 Some(v) => {
                     let mut content_type = String::new();
@@ -198,13 +202,13 @@ pub fn exec_response(req: Request, r: RequestResult) {
                     for v in auth_origin_headers.iter() {
                         res.add_header(v.clone());
                     }
-                    req.respond(res);
+                    _ = req.respond(res);
                     return;
                 },
                 None => {
                     let mut res = Response::empty(res_status);
                     for v in auth_origin_headers.iter() {
-                        res.add_header(v.clone());
+                        _ = res.add_header(v.clone());
                     }
 
                     match r.l {
@@ -219,7 +223,7 @@ pub fn exec_response(req: Request, r: RequestResult) {
                         },
                     };
 
-                    req.respond(res);
+                    _ = req.respond(res);
                     return;
                 },
             }

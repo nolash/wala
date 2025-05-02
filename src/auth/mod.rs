@@ -133,7 +133,7 @@ impl Error for AuthSpecError {
 
 impl fmt::Display for AuthSpecError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        fmt.write_str(&self.to_string())
     }
 }
 
@@ -196,7 +196,7 @@ pub struct AuthError;
 
 impl fmt::Display for AuthError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        fmt.write_str(&self.to_string())
     }
 }
 

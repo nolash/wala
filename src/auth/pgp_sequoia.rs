@@ -19,7 +19,7 @@ use crate::auth::{
 use sequoia_openpgp::Cert;
 use sequoia_openpgp::KeyHandle;
 use sequoia_openpgp::Result as PGPResult;
-use sequoia_openpgp::cert::prelude::*;
+//use sequoia_openpgp::cert::prelude::*;
 use sequoia_openpgp::packet::key::PrimaryRole;
 use sequoia_openpgp::packet::key::PublicParts;
 use sequoia_openpgp::packet::prelude::*;
@@ -34,7 +34,8 @@ use nettle::hash::Sha256;
 
 use base64;
 
-use log::{debug, info, error};
+use log::debug;
+use log::error;
 
 
 fn check_key_single(data: &Vec<u8>) -> Option<Key<PublicParts, PrimaryRole>> {
@@ -43,7 +44,7 @@ fn check_key_single(data: &Vec<u8>) -> Option<Key<PublicParts, PrimaryRole>> {
             let pubkey: Key<PublicParts, PrimaryRole> = v.into();
             return Some(pubkey);
         },
-        Err(e) => {
+        Err(_) => {
         },
     };
     None
@@ -56,7 +57,7 @@ fn check_key_bundle(data: &Vec<u8>) -> Option<Cert> {
             //return Some(pubkey.clone());
             return Some(v);
         },
-        Err(e) => {
+        Err(_) => {
         },
     };
     None
@@ -65,21 +66,23 @@ fn check_key_bundle(data: &Vec<u8>) -> Option<Cert> {
 fn check_sig_single(public_key: &Key<PublicParts, PrimaryRole>, signature_data: Vec<u8>, mut message: impl Read, message_length: usize) -> bool {
     match Signature::from_bytes(&signature_data) {
         Ok(mut v) => {
+            //let mut hasher = Sha256::default();
             let mut hasher = Sha256::default();
             let mut message_data: Vec<u8> = vec!();
-            message.read_to_end(&mut message_data);
-            debug!("checking mesage {:?}", &message_data);
+            _ = message.read_to_end(&mut message_data);
             hasher.update(&message_data);
             match v.verify_hash(&public_key, Box::new(hasher)) {
-                Ok(v) => {
+                Ok(_) => {
                     return true;
                 },
-                Err(e) => {
+                Err(_) => {
                 },
             }
         },
-        Err(e) => {
-
+        Err(_) => {
+            _ = public_key;
+            _ = message;
+            _ = message_length;
         },
     }
     false
@@ -90,14 +93,14 @@ struct Helper {
 }
 
 impl VerificationHelper for Helper {
-    fn get_certs(&mut self, ids: &[KeyHandle]) -> PGPResult<Vec<Cert>> {
+    fn get_certs(&mut self, _ids: &[KeyHandle]) -> PGPResult<Vec<Cert>> {
         let mut certs = Vec::new();
         certs.push(self.cert.clone());
         return Ok(certs);
     }
 
     fn check(&mut self, structure: MessageStructure) -> PGPResult<()> {
-        let mut good = false;
+        //let good = false;
 
         for (i, layer) in structure.into_iter().enumerate() {
             match (i, layer) {
@@ -109,7 +112,7 @@ impl VerificationHelper for Helper {
                             panic!("none");
                         },
                         Some(Err(e)) => {
-                            panic!("err");
+                            panic!("err {}", e);
                         },
                     };
                 },
@@ -122,12 +125,16 @@ impl VerificationHelper for Helper {
     }
 }
 
+// TODO handle unreadable message
 fn check_sig_bundle(public_key: &Cert, signature_data: Vec<u8>, mut message: impl Read, message_length: usize) -> bool {
+    _ = message_length;
     let p = StandardPolicy::new();
     let mut sig_bundle_packets = PacketParser::from_bytes(&signature_data).unwrap();
-    while let PacketParserResult::Some(mut pp) = sig_bundle_packets {
+    //while let PacketParserResult::Some(mut pp) = sig_bundle_packets {
+    while let PacketParserResult::Some(pp) = sig_bundle_packets {
         let mut pk = pp.packet.clone();
         if let Packet::Signature(ref mut sig) = pk {
+            _ = sig;
             let pbytes = pk.to_vec().unwrap();
             let helper = Helper{
                 cert: public_key.clone(),
@@ -135,12 +142,12 @@ fn check_sig_bundle(public_key: &Cert, signature_data: Vec<u8>, mut message: imp
             let mut verifier = DetachedVerifierBuilder::from_bytes(&pbytes).unwrap().with_policy(&p, None, helper).unwrap();
 
             let mut message_all: Vec<u8> = vec!();
-            message.read_to_end(&mut message_all);
+            _ = message.read_to_end(&mut message_all);
             match verifier.verify_bytes(&message_all) {
-                Ok(v) => {
+                Ok(_) => {
                     return true;
                 },
-                Err(e) => {
+                Err(_) => {
                 },
             };
         }
@@ -185,7 +192,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
         Ok(v) => {
             v
         },
-        Err(e) => {
+        Err(_) => {
             return Err(AuthError{});
         }
     };
@@ -195,7 +202,7 @@ pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Resul
         Ok(v) => {
             v
         },
-        Err(e) => {
+        Err(_) => {
             return Err(AuthError{});
         }
     };

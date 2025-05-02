@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::fs::{
     File,
-    OpenOptions,
+//    OpenOptions,
 };
 use std::io::Write;
     
@@ -43,9 +43,10 @@ pub fn trace_request(p: &Path, res: &RequestResult, store_identity: bool) {
         None => {
         },
     }
+    debug!("have identity: {}", identity);
     let fp = p.join(&rf);
     let mut f = File::create(fp).unwrap();
-    f.write(content.as_ref());
+    _ = f.write(content.as_ref());
 
     // useless update because we can always resolve mutable to immutable from data dir
 //    if content.len() != 0 {

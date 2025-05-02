@@ -26,23 +26,27 @@
 //! For more details on what funcionality [wala](wala) provides, please consult the
 //! [library crate documentation](wala).
 
-use std::env::home_dir;
-use std::io::stdout;
-use std::io::copy;
+//use std::env::home_dir;
+//use std::io::stdout;
+//use std::io::copy;
 use std::io::Write;
 
 use env_logger;
 
 use url::Url;
 
-use log::{info, debug};
+//use log::{info, debug};
+use log::{debug};
 
-use ureq::{Agent, AgentBuilder};
+//use ureq::{Agent, AgentBuilder};
+use ureq::AgentBuilder;
 
 use clap::{
     App, 
     Arg,
 };
+
+use xdg_home::home_dir;
 
 use sequoia_openpgp::packet::prelude::*;
 use sequoia_openpgp::cert::prelude::CertParser;
@@ -53,13 +57,13 @@ use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::key::PublicParts;
-use sequoia_openpgp::packet::key::UnspecifiedRole;
+//use sequoia_openpgp::packet::key::UnspecifiedRole;
 use sequoia_openpgp::packet::key::PrimaryRole;
 use sequoia_openpgp::serialize::stream::Message;
 use sequoia_openpgp::serialize::stream::Signer;
-use sequoia_openpgp::serialize::stream::LiteralWriter;
+//use sequoia_openpgp::serialize::stream::LiteralWriter;
 
-use base64::encode;
+//use base64::encode;
 
 use wala::record::{ResourceKey};
 use wala::auth::{AuthResult};
@@ -129,12 +133,13 @@ fn main() {
     
     let data = args.value_of("DATA").unwrap();
     
-    let mut auth: Option<AuthResult> = None;
+    //let mut auth: Option<AuthResult> = None;
+    //let auth: Option<AuthResult> = None;
 
     let url_src = args.value_of("url").unwrap();
     let mut url = Url::parse(url_src).unwrap();
 
-    let mut have_auth = false;
+    //let have_auth = false;
     let mut rk = ResourceKey {
         v: Vec::new(),
     };
@@ -202,16 +207,15 @@ fn main() {
             let mut sig_sink = vec!();
             let mut pubkey_sink = vec!();
 
-            let mut pwd = String::new();
             if k.secret().is_encrypted() {
-                pwd = rpassword::prompt_password("Key passphrase: ").unwrap();
+                let pwd = rpassword::prompt_password("Key passphrase: ").unwrap();
                 let algo = k.pk_algo();
-                k.secret_mut()
+                _ = k.secret_mut()
                     .decrypt_in_place(algo, &pwd.into());
-
             }
 
-            let mut sig_msg = Message::new(&mut sig_sink);
+            //let mut sig_msg = Message::new(&mut sig_sink);
+            let sig_msg = Message::new(&mut sig_sink);
 
             let kp =  k.clone().into_keypair().unwrap();
             let pk: Key<PublicParts, PrimaryRole> = kp.public().clone().role_into_primary();
@@ -219,10 +223,10 @@ fn main() {
                 .detached()
                 .build()
                 .unwrap();
-            signer.write_all(&data.as_bytes());
-            signer.finalize();
+            _ = signer.write_all(&data.as_bytes());
+            _ = signer.finalize();
 
-            Packet::from(pk).serialize(&mut pubkey_sink);
+            _ = Packet::from(pk).serialize(&mut pubkey_sink);
            
             sig_bsf = base64::encode(sig_sink);
             pubkey_bsf = base64::encode(pubkey_sink);

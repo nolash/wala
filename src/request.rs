@@ -2,9 +2,9 @@ use std::path::Path;
 use std::str::FromStr;
 use tiny_http::{
     Method,
-    Response,
-    Request,
-    StatusCode,
+//    Response,
+//    Request,
+//    StatusCode,
 };
 use crate::record::{
     put_immutable,
@@ -40,7 +40,8 @@ use log::{
 /// * `expected_size` - Size hint for content body.
 /// * `path` - Absolute path to storage directory.
 /// * `auth_result` -  Result of authentication (if any) the client has provided with the request.
-pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
+//pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
+pub fn process_method(method: &Method, url: String, f: impl Read, expected_size: usize, path: &Path, auth_result: AuthResult) -> RequestResult {
     match method {
         Method::Put => {
             if !auth_result.valid() {
@@ -154,7 +155,7 @@ pub fn process_method(method: &Method, url: String, mut f: impl Read, expected_s
                         res.n = get_meta_filename(path, &digest);
                     }
                 },
-                Err(e) => {
+                Err(_) => {
                     res = RequestResult::new(RequestResultType::ReadError);
                 },
             }

@@ -10,7 +10,8 @@ use tiny_http::{
 use mime::Mime;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
-use std::path::{PathBuf, Path};
+//use std::path::{PathBuf, Path};
+use std::path::Path;
 use std::fs::{
     File,
     create_dir_all,
@@ -19,7 +20,7 @@ use std::error::Error;
 use std::fmt;
 use std::io::{
     copy as io_copy,
-    Read,
+//    Read,
     Seek,
     empty,
 };
@@ -30,8 +31,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use env_logger;
 use ascii::AsciiStr;
-use signal_hook::flag;
-use signal_hook::consts;
+//use signal_hook::flag;
+//use signal_hook::consts;
 
 use wala::auth::{
     AuthSpec,
@@ -78,7 +79,7 @@ impl Error for NoAuthError {
 
 impl fmt::Display for NoAuthError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        fmt.write_str(&self.to_string())
     }
 }
 
@@ -89,6 +90,7 @@ fn exec_auth(auth_spec: AuthSpec, data: &File, data_length: usize) -> Option<Aut
             return Some(v);
         },
         Err(e) => {
+            error!("mock auth check error ({})", e)
         },
     }
 
@@ -98,6 +100,7 @@ fn exec_auth(auth_spec: AuthSpec, data: &File, data_length: usize) -> Option<Aut
             return Some(v);
         },
         Err(e) => {
+            error!("pgp auth check error ({})", e)
         },
     }
 
@@ -128,7 +131,7 @@ fn auth_from_headers(headers: &[Header], method: &Method) -> Option<AuthSpec> {
                     return Some(v);
                 },
                 Err(e) => {
-                    error!("malformed auth string: {}", &h.value);
+                    error!("malformed auth string: {} ({})", &h.value, e);
                     let r = AuthSpec{
                         method: String::from(method.as_str()),
                         key: String::new(),
@@ -183,7 +186,7 @@ fn process_meta(req: &Request, path: &Path, digest: Vec<u8>) -> Option<Mime> {
             let v = &h.value;
             m = match Mime::from_str(v.as_str()) {
                 Err(e) => {
-                    error!("invalid mime type");
+                    error!("invalid mime type ({})", e);
                     return None;
                 },
                 Ok(v) => {
@@ -235,13 +238,14 @@ fn main() {
     let base_path = settings.dir.as_path();
 
     let spool_path = base_path.join("spool");
-    let mut spool_ok = false;
+    //let mut spool_ok = false;
+    //
 
     #[cfg(feature = "trace")]
     {
         match create_dir_all(&spool_path) {
-            Ok(v) => {
-                spool_ok = true;
+            Ok(_) => {
+     //           spool_ok = true;
             },
             Err(e) => {
                 warn!("spool directory could not be created: {:?}", e);
@@ -266,12 +270,13 @@ fn main() {
     #[cfg(feature = "docker")]
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term)).unwrap();
     
-    const loop_timeout: Duration = Duration::new(1, 0);
+    const LOOP_TIMEOUT: Duration = Duration::new(1, 0);
 
     while !term.load(Ordering::Relaxed) {
 
-        let b = srv.recv_timeout(loop_timeout);
-        let mut hasreq: Option<Request>;
+        let b = srv.recv_timeout(LOOP_TIMEOUT);
+        //let mut hasreq: Option<Request>;
+        let hasreq: Option<Request>;
         match b {
             Ok(v) => hasreq = v,
             Err(e) => {
@@ -308,25 +313,49 @@ fn main() {
                 },
             };
         let f = req.as_reader();
-        let mut path = base_path.clone();
+        //let mut path = base_path.clone();
+        let path = base_path.clone();
         let mut res: AuthResult = AuthResult{
             identity: vec!(), 
             error: false,
         };
         let rw: Option<File> = match tempfile() {
             Ok(mut v) => {
-                io_copy(f, &mut v);
-                v.rewind();
+                match io_copy(f, &mut v) {
+                    Ok(_) => {
+                    },
+                    Err(e) => {
+                        error!("could not copy file: {:?} ({})", path, e);
+                        continue;
+                    },
+                };
+                match v.rewind() {
+                    Ok(_) => {
+                    },
+                    Err(e) => {
+                        error!("could not rewind file for request: {:?} ({})", path, e);
+                        continue;
+                    },
+                };
                 res = process_request(&mut req, &mut v);
-                v.rewind();
+                match v.rewind() {
+                    Ok(_) => {
+                    },
+                    Err(e) => {
+                        error!("could not rewind file for return: {:?} ({})", path, e);
+                        continue;
+                    },
+                };
                 Some(v)
             },
             Err(e) => {
-                None
+                    error!("tempfile error: {:?} ({})", path, e);
+                    None
             },
         };
 
-        let mut result: RequestResult;
+        //let mut result: RequestResult;
+        let result: RequestResult;
         match rw {
             Some(v) => {
                 result = process_method(&method, url, v, expected_size, &path, res);

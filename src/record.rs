@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::io;
+//use std::io;
 use std::convert::Infallible;
 use std::fs::{
     File,
@@ -20,7 +20,7 @@ use sha2::{Sha256, Digest};
 use std::fmt;
 
 use crate::auth::AuthResult;
-use tiny_http::Request;
+//use tiny_http::Request;
 use tempfile::NamedTempFile;
 
 use mime::Mime;
@@ -108,7 +108,7 @@ impl RequestResult {
 
 impl fmt::Display for RequestResult {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        fmt.write_str(&self.to_string())
     }
 }
 
@@ -186,12 +186,13 @@ impl ResourceKey {
 /// * `path` - Absolute path to storage directory.
 /// * `f` - Reader providing the contents of the file.
 /// * `expected_size` - Size hint of content.
+/// TODO: handle write fail
 pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Result<Record, RequestResult> {
     let z: Vec<u8>;
     let hash: String;
-    let mut total_size: usize = 0;
     let tempfile = match NamedTempFile::new() {
         Ok(of) => {
+            let mut total_size: usize = 0;
             debug!("writing to tempfile {:?} expected size {}", of.path(), expected_size);
             let mut buf: [u8; 65535] = [0; 65535];
             let mut h = Sha256::new();
@@ -204,7 +205,7 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
                         total_size += v;
                         let data = &buf[..v];
                         h.update(data);
-                        of.as_file().write(data);
+                        _ = of.as_file().write(data);
                     },
                     Err(e) => {
                         error!("cannot read from request body: {}", e);
@@ -223,10 +224,10 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
 
             z = h.finalize().to_vec();
             hash = hex::encode(&z);
-            info!("have hash {} for content", hash);
+            info!("have hash {} for content, length {}", hash, total_size);
             of
         },
-        Err(e) => {
+        Err(_) => {
             let err = RequestResult::new(RequestResultType::WriteError);
             return Err(err);
         }
@@ -234,14 +235,20 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
 
     let final_path_buf = path.join(&hash);
     let final_path = final_path_buf.as_path();
-    fs_copy(tempfile.path(), final_path);
+    match fs_copy(tempfile.path(), &final_path) {
+        Ok(_) => {
+        },
+        Err(e) => {
+            error!("could not store immutable: {:?} ({})", final_path, e);
+        },
+    }
 
-    let r = Record{
+    let rec = Record{
         digest: z,
         path: final_path_buf,
         alias: None,
     };
-    Ok(r)
+    Ok(rec)
 }
 
 /// Store an immutable record on file with a mutable reference.
@@ -256,7 +263,8 @@ pub fn put_immutable(path: &Path, mut f: impl Read, expected_size: usize) -> Res
 /// * `expected_size` - Size hint of content.
 /// * `key` - Mutable reference generator.
 /// * `auth` - Authentication result containing the client identity.
-pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &ResourceKey, auth: &AuthResult) -> Result<Record, RequestResult> {
+//pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &ResourceKey, auth: &AuthResult) -> Result<Record, RequestResult> {
+pub fn put_mutable(path: &Path, f: impl Read, expected_size: usize, key: &ResourceKey, auth: &AuthResult) -> Result<Record, RequestResult> {
     let pointer = key.pointer_for(auth);
     let mutable_ref = hex::encode(&pointer);
     debug!("generated mutable ref {}", &mutable_ref);
@@ -266,15 +274,22 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
     match record {
         Ok(v) => {
             match remove_file(&link_path_buf) {
-                Ok(r) => {
+                Ok(_) => {
                     debug!("unlinked mutable ref on {:?}", &link_path_buf);
                 },
                 Err(e) => {
-                    debug!("clear symlink failed {:?}", &e);
+                    debug!("clear symlink failed {:?}", e);
                 }
             };
-            symlink(&v.path, &link_path_buf);
-            info!("linked mutable ref {:?} -> {:?}", &link_path_buf, &v.path);
+            match symlink(&v.path, &link_path_buf) {
+                Ok(_) => {
+                    info!("linked mutable ref {:?} -> {:?}", &link_path_buf, &v.path);
+                },
+                Err(e) => {
+                    error!("could not link mutable ref {:?} -> {:?} ({})", &link_path_buf, &v.path, e);
+                },
+
+            };
             let r = Record{
                 digest: pointer,
                 path: link_path_buf.clone(),
@@ -296,11 +311,12 @@ pub fn put_mutable(path: &Path, mut f: impl Read, expected_size: usize, key: &Re
 /// * `pointer` - A reference to the pointer.
 /// * `path` - Absolute path to storage directory.
 pub fn get(pointer: Vec<u8>, path: &Path) -> Option<File> {
+    _ = pointer;
     let path_canon = match path.canonicalize() {
         Ok(v) => {
             v
         },
-        Err(e) => {
+        Err(_) => {
             return None;
         },
     };

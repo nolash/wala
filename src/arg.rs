@@ -3,7 +3,7 @@ use clap::{
     App, 
     Arg,
     ArgMatches,
-    SubCommand,
+//    SubCommand,
 };
 
 pub struct Settings {

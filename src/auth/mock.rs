@@ -20,7 +20,7 @@ use crate::auth::{
 /// * `auth` - Authentication data submitted by client.
 /// * `data` - Content body submitted by client, to match signature against.
 /// * `data_length` - Length of content body
-pub fn auth_check(auth: &AuthSpec, data: impl Read, data_length: usize) -> Result<AuthResult, AuthError> {
+pub fn auth_check(auth: &AuthSpec, _data: impl Read, _data_length: usize) -> Result<AuthResult, AuthError> {
     if auth.method != "mock" {
         return Err(AuthError{});
     }
