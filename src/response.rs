@@ -28,7 +28,7 @@ pub fn origin_headers() -> Vec<Header> {
     });
     headers.push(Header{
         field: HeaderField::from_str("Access-Control-Allow-Methods").unwrap(),
-        value: AsciiString::from_ascii("OPTIONS, PUT, GET").unwrap(),
+        value: AsciiString::from_ascii("OPTIONS, PUT, GET, HEAD").unwrap(),
     });
     headers.push(Header{
         field: HeaderField::from_str("Access-Control-Allow-Headers").unwrap(),
